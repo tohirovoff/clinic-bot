@@ -50,7 +50,7 @@ function handleLangSelection(bot) {
     const lang = query.data.split(':')[1]; // uz_latin or uz_cyrillic
 
     sessionQueries.setLang.run(chatId, lang, lang);
-    bot.answerCallbackQuery(query.id);
+    bot.answerCallbackQuery(query.id).catch(() => {});
 
     // Delete the language selection message
     bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
@@ -79,7 +79,7 @@ function handleRegistration(bot) {
     const session = getSession(chatId);
     const lang = session.lang || 'uz_latin';
 
-    bot.answerCallbackQuery(query.id);
+    bot.answerCallbackQuery(query.id).catch(() => {});
     bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
     const infoText = t(lang, 'clinic_info', {

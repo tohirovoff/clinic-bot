@@ -32,7 +32,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Cancel ────────────────────────────────────────────────────
     if (data === 'cancel') {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       sessionQueries.clearState.run(chatId);
       bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
       return bot.sendMessage(chatId, t(lang, 'cancelled'), adminMenuKeyboard(lang));
@@ -40,7 +40,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Add User ──────────────────────────────────────────────────
     if (data === 'admin:add_user') {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       sessionQueries.setState.run('admin_add_user_name', null, chatId);
       return bot.editMessageText(t(lang, 'enter_user_fullname'), {
         chat_id: chatId,
@@ -53,7 +53,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Add Patient ───────────────────────────────────────────────
     if (data === 'admin:add_patient') {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const users = userQueries.getAll.all();
       if (users.length === 0) {
         return bot.editMessageText(t(lang, 'user_list_empty'), {
@@ -85,7 +85,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Select user for patient ───────────────────────────────────
     if (data.startsWith('select_user:')) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
       sessionQueries.setState.run(
         'admin_add_patient_name',
@@ -103,7 +103,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Select department for patient ─────────────────────────────
     if (data.startsWith('select_dept:')) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const sessionState = session.state;
       if (sessionState !== 'admin_add_patient_department') return;
 
@@ -151,20 +151,20 @@ function handleAdminCallbacks(bot) {
 
     // ── User List ─────────────────────────────────────────────────
     if (data === 'admin:user_list') {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       return showUserList(bot, chatId, query.message.message_id, lang);
     }
 
     // ── User Detail ───────────────────────────────────────────────
     if (data.startsWith('user_detail:')) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
       return showUserDetail(bot, chatId, query.message.message_id, lang, userId);
     }
 
     // ── User Stats (admin viewing a user) ─────────────────────────
     if (data.startsWith('admin_user_stats:')) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const parts = data.split(':');
       const userId = parseInt(parts[1], 10);
       const period = parts[2];
@@ -173,7 +173,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Delete User (confirm) ─────────────────────────────────────
     if (data.startsWith('delete_user:') && !data.startsWith('delete_user_yes:')) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
       const user = userQueries.findById.get(userId);
       if (!user) return;
@@ -194,7 +194,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Delete User (execute) ─────────────────────────────────────
     if (data.startsWith('delete_user_yes:')) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
       const user = userQueries.findById.get(userId);
       if (!user) return;
@@ -218,7 +218,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Overall Stats Menu ────────────────────────────────────────
     if (data === 'admin:overall_stats') {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       return bot.editMessageText(t(lang, 'admin_overall_stats'), {
         chat_id: chatId,
         message_id: query.message.message_id,
@@ -230,7 +230,7 @@ function handleAdminCallbacks(bot) {
 
     // ── Overall Stats Period ──────────────────────────────────────
     if (data.startsWith('overall_stats:')) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       const period = data.replace('overall_stats:', '');
 
       if (period === 'back') {
@@ -544,7 +544,7 @@ function handleAdminBackToMenu(bot) {
 
     const session = getSession(chatId);
     const lang = session.lang || 'uz_latin';
-    bot.answerCallbackQuery(query.id);
+    bot.answerCallbackQuery(query.id).catch(() => {});
 
     bot.editMessageText(t(lang, 'admin_welcome'), {
       chat_id: chatId,

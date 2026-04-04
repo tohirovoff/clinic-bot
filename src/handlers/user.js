@@ -16,11 +16,11 @@ function handleUserStats(bot) {
     const lang = session.lang || 'uz_latin';
 
     if (!session.user_id) {
-      bot.answerCallbackQuery(query.id);
+      bot.answerCallbackQuery(query.id).catch(() => {});
       return bot.sendMessage(chatId, t(lang, 'not_authorized'));
     }
 
-    bot.answerCallbackQuery(query.id);
+    bot.answerCallbackQuery(query.id).catch(() => {});
 
     // Show stats period selection
     if (query.data === 'user:stats') {
