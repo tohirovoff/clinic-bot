@@ -1,0 +1,563 @@
+const { t } = require('../locales');
+const {
+  userQueries,
+  patientQueries,
+  sessionQueries,
+} = require('../database/queries');
+const { getSession, isAdmin, escapeMarkdown } = require('../utils/helpers');
+const { generatePassword } = require('../utils/password');
+const { getDateRange } = require('../utils/dates');
+const {
+  adminMenuKeyboard,
+  cancelKeyboard,
+  inlineKeyboard,
+  overallStatsKeyboard,
+  userDetailKeyboard,
+  confirmDeleteKeyboard,
+  departmentKeyboard,
+} = require('../keyboards');
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Admin menu callback handler
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function handleAdminCallbacks(bot) {
+  bot.on('callback_query', (query) => {
+    const chatId = query.message.chat.id;
+    if (!isAdmin(chatId)) return;
+
+    const data = query.data;
+    const session = getSession(chatId);
+    const lang = session.lang || 'uz_latin';
+
+    // ── Cancel ────────────────────────────────────────────────────
+    if (data === 'cancel') {
+      bot.answerCallbackQuery(query.id);
+      sessionQueries.clearState.run(chatId);
+      bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+      return bot.sendMessage(chatId, t(lang, 'cancelled'), adminMenuKeyboard(lang));
+    }
+
+    // ── Add User ──────────────────────────────────────────────────
+    if (data === 'admin:add_user') {
+      bot.answerCallbackQuery(query.id);
+      sessionQueries.setState.run('admin_add_user_name', null, chatId);
+      return bot.editMessageText(t(lang, 'enter_user_fullname'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...cancelKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'enter_user_fullname'), cancelKeyboard(lang));
+      });
+    }
+
+    // ── Add Patient ───────────────────────────────────────────────
+    if (data === 'admin:add_patient') {
+      bot.answerCallbackQuery(query.id);
+      const users = userQueries.getAll.all();
+      if (users.length === 0) {
+        return bot.editMessageText(t(lang, 'user_list_empty'), {
+          chat_id: chatId,
+          message_id: query.message.message_id,
+          parse_mode: 'MarkdownV2',
+          ...adminMenuKeyboard(lang),
+        }).catch(() => {
+          bot.sendMessage(chatId, t(lang, 'user_list_empty'), {
+            parse_mode: 'MarkdownV2',
+            ...adminMenuKeyboard(lang),
+          });
+        });
+      }
+
+      const buttons = users.map((u) => [
+        { text: `${u.full_name} — ${u.region}`, callback_data: `select_user:${u.id}` },
+      ]);
+      buttons.push([{ text: t(lang, 'cancel'), callback_data: 'cancel' }]);
+
+      return bot.editMessageText(t(lang, 'select_user_for_patient'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...inlineKeyboard(buttons),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'select_user_for_patient'), inlineKeyboard(buttons));
+      });
+    }
+
+    // ── Select user for patient ───────────────────────────────────
+    if (data.startsWith('select_user:')) {
+      bot.answerCallbackQuery(query.id);
+      const userId = parseInt(data.split(':')[1], 10);
+      sessionQueries.setState.run(
+        'admin_add_patient_name',
+        JSON.stringify({ user_id: userId }),
+        chatId
+      );
+      return bot.editMessageText(t(lang, 'enter_patient_fullname'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...cancelKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'enter_patient_fullname'), cancelKeyboard(lang));
+      });
+    }
+
+    // ── Select department for patient ─────────────────────────────
+    if (data.startsWith('select_dept:')) {
+      bot.answerCallbackQuery(query.id);
+      const sessionState = session.state;
+      if (sessionState !== 'admin_add_patient_department') return;
+
+      const department = data.split(':')[1];
+      const stateData = session.state_data ? JSON.parse(session.state_data) : {};
+      stateData.department = department;
+
+      try {
+        patientQueries.create.run({
+          user_id: stateData.user_id,
+          full_name: stateData.full_name,
+          region: stateData.region,
+          birth_year: stateData.year,
+          department: stateData.department,
+        });
+      } catch (err) {
+        console.error('Error creating patient:', err);
+        sessionQueries.clearState.run(chatId);
+        bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+        return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', adminMenuKeyboard(lang));
+      }
+
+      const user = userQueries.findById.get(stateData.user_id);
+      sessionQueries.clearState.run(chatId);
+
+      let deptText = department;
+      if (department === 'Rentgen') deptText = t(lang, 'dept_rentgen');
+      if (department === 'Ayollar UZI') deptText = t(lang, 'dept_uzi');
+      if (department === 'Bolalar shifokori') deptText = t(lang, 'dept_pediatr');
+
+      const successText = t(lang, 'patient_added_success', {
+        name: escapeMarkdown(stateData.full_name),
+        region: escapeMarkdown(stateData.region),
+        year: String(stateData.year),
+        department: escapeMarkdown(deptText),
+        user: escapeMarkdown(user ? user.full_name : '—'),
+      });
+
+      bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+      return bot.sendMessage(chatId, successText, {
+        parse_mode: 'MarkdownV2',
+        ...adminMenuKeyboard(lang),
+      });
+    }
+
+    // ── User List ─────────────────────────────────────────────────
+    if (data === 'admin:user_list') {
+      bot.answerCallbackQuery(query.id);
+      return showUserList(bot, chatId, query.message.message_id, lang);
+    }
+
+    // ── User Detail ───────────────────────────────────────────────
+    if (data.startsWith('user_detail:')) {
+      bot.answerCallbackQuery(query.id);
+      const userId = parseInt(data.split(':')[1], 10);
+      return showUserDetail(bot, chatId, query.message.message_id, lang, userId);
+    }
+
+    // ── User Stats (admin viewing a user) ─────────────────────────
+    if (data.startsWith('admin_user_stats:')) {
+      bot.answerCallbackQuery(query.id);
+      const parts = data.split(':');
+      const userId = parseInt(parts[1], 10);
+      const period = parts[2];
+      return showUserStatsForAdmin(bot, chatId, query.message.message_id, lang, userId, period);
+    }
+
+    // ── Delete User (confirm) ─────────────────────────────────────
+    if (data.startsWith('delete_user:') && !data.startsWith('delete_user_yes:')) {
+      bot.answerCallbackQuery(query.id);
+      const userId = parseInt(data.split(':')[1], 10);
+      const user = userQueries.findById.get(userId);
+      if (!user) return;
+
+      const escapedName = escapeMarkdown(user.full_name);
+      return bot.editMessageText(t(lang, 'confirm_delete_user', { name: escapedName }), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        parse_mode: 'MarkdownV2',
+        ...confirmDeleteKeyboard(lang, userId),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'confirm_delete_user', { name: escapedName }), {
+          parse_mode: 'MarkdownV2',
+          ...confirmDeleteKeyboard(lang, userId),
+        });
+      });
+    }
+
+    // ── Delete User (execute) ─────────────────────────────────────
+    if (data.startsWith('delete_user_yes:')) {
+      bot.answerCallbackQuery(query.id);
+      const userId = parseInt(data.split(':')[1], 10);
+      const user = userQueries.findById.get(userId);
+      if (!user) return;
+
+      const escapedName = escapeMarkdown(user.full_name);
+      sessionQueries.deleteByUserId.run(userId);
+      userQueries.deleteById.run(userId);
+
+      return bot.editMessageText(t(lang, 'user_deleted', { name: escapedName }), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        parse_mode: 'MarkdownV2',
+        ...adminMenuKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'user_deleted', { name: escapedName }), {
+          parse_mode: 'MarkdownV2',
+          ...adminMenuKeyboard(lang),
+        });
+      });
+    }
+
+    // ── Overall Stats Menu ────────────────────────────────────────
+    if (data === 'admin:overall_stats') {
+      bot.answerCallbackQuery(query.id);
+      return bot.editMessageText(t(lang, 'admin_overall_stats'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...overallStatsKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'admin_overall_stats'), overallStatsKeyboard(lang));
+      });
+    }
+
+    // ── Overall Stats Period ──────────────────────────────────────
+    if (data.startsWith('overall_stats:')) {
+      bot.answerCallbackQuery(query.id);
+      const period = data.replace('overall_stats:', '');
+
+      if (period === 'back') {
+        return bot.editMessageText(t(lang, 'admin_welcome'), {
+          chat_id: chatId,
+          message_id: query.message.message_id,
+          ...adminMenuKeyboard(lang),
+        }).catch(() => {
+          bot.sendMessage(chatId, t(lang, 'admin_welcome'), adminMenuKeyboard(lang));
+        });
+      }
+
+      if (!['daily', 'weekly', 'monthly', 'yearly'].includes(period)) return;
+
+      return showOverallStats(bot, chatId, query.message.message_id, lang, period);
+    }
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Admin text input handler (multi-step forms)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function handleAdminTextInput(bot) {
+  bot.on('message', (msg) => {
+    if (!msg.text || msg.text.startsWith('/')) return;
+
+    const chatId = msg.chat.id;
+    if (!isAdmin(chatId)) return;
+
+    const session = getSession(chatId);
+    if (!session.state || !session.state.startsWith('admin_')) return;
+
+    const lang = session.lang || 'uz_latin';
+    const stateData = session.state_data ? JSON.parse(session.state_data) : {};
+    const input = msg.text.trim();
+
+    switch (session.state) {
+      // ── Add User Flow ────────────────────────────────────────
+      case 'admin_add_user_name': {
+        stateData.full_name = input;
+        sessionQueries.setState.run(
+          'admin_add_user_region',
+          JSON.stringify(stateData),
+          chatId
+        );
+        bot.sendMessage(chatId, t(lang, 'enter_user_region'), cancelKeyboard(lang));
+        break;
+      }
+
+      case 'admin_add_user_region': {
+        stateData.region = input;
+        sessionQueries.setState.run(
+          'admin_add_user_year',
+          JSON.stringify(stateData),
+          chatId
+        );
+        bot.sendMessage(chatId, t(lang, 'enter_user_birthyear'), cancelKeyboard(lang));
+        break;
+      }
+
+      case 'admin_add_user_year': {
+        const year = parseInt(input, 10);
+        if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+          return bot.sendMessage(chatId, t(lang, 'invalid_year'), cancelKeyboard(lang));
+        }
+
+        const password = generatePassword();
+        try {
+          userQueries.create.run({
+            full_name: stateData.full_name,
+            region: stateData.region,
+            birth_year: year,
+            password,
+          });
+        } catch (err) {
+          console.error('Error creating user:', err);
+          sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', adminMenuKeyboard(lang));
+        }
+
+        sessionQueries.clearState.run(chatId);
+
+        const successText = t(lang, 'user_added_success', {
+          name: escapeMarkdown(stateData.full_name),
+          region: escapeMarkdown(stateData.region),
+          year: String(year),
+          password,
+        });
+
+        bot.sendMessage(chatId, successText, {
+          parse_mode: 'MarkdownV2',
+          ...adminMenuKeyboard(lang),
+        });
+        break;
+      }
+
+      // ── Add Patient Flow ─────────────────────────────────────
+      case 'admin_add_patient_name': {
+        stateData.full_name = input;
+        sessionQueries.setState.run(
+          'admin_add_patient_region',
+          JSON.stringify(stateData),
+          chatId
+        );
+        bot.sendMessage(chatId, t(lang, 'enter_patient_region'), cancelKeyboard(lang));
+        break;
+      }
+
+      case 'admin_add_patient_region': {
+        stateData.region = input;
+        sessionQueries.setState.run(
+          'admin_add_patient_year',
+          JSON.stringify(stateData),
+          chatId
+        );
+        bot.sendMessage(chatId, t(lang, 'enter_patient_birthyear'), cancelKeyboard(lang));
+        break;
+      }
+
+      case 'admin_add_patient_year': {
+        const year = parseInt(input, 10);
+        if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+          return bot.sendMessage(chatId, t(lang, 'invalid_year'), cancelKeyboard(lang));
+        }
+
+        stateData.year = year;
+        sessionQueries.setState.run(
+          'admin_add_patient_department',
+          JSON.stringify(stateData),
+          chatId
+        );
+        bot.sendMessage(chatId, t(lang, 'enter_patient_department'), departmentKeyboard(lang));
+        break;
+      }
+
+      default:
+        break;
+    }
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Helper: Show user list
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function showUserList(bot, chatId, messageId, lang) {
+  const users = userQueries.getAll.all();
+
+  if (users.length === 0) {
+    return bot.editMessageText(t(lang, 'user_list_empty'), {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'MarkdownV2',
+      ...adminMenuKeyboard(lang),
+    }).catch(() => {
+      bot.sendMessage(chatId, t(lang, 'user_list_empty'), {
+        parse_mode: 'MarkdownV2',
+        ...adminMenuKeyboard(lang),
+      });
+    });
+  }
+
+  const buttons = users.map((u, i) => [
+    {
+      text: `${i + 1}. ${u.full_name} — ${u.region}`,
+      callback_data: `user_detail:${u.id}`,
+    },
+  ]);
+  buttons.push([{ text: t(lang, 'back'), callback_data: 'admin_back_to_menu' }]);
+
+  bot.editMessageText(t(lang, 'user_list_title'), {
+    chat_id: chatId,
+    message_id: messageId,
+    parse_mode: 'MarkdownV2',
+    ...inlineKeyboard(buttons),
+  }).catch(() => {
+    bot.sendMessage(chatId, t(lang, 'user_list_title'), {
+      parse_mode: 'MarkdownV2',
+      ...inlineKeyboard(buttons),
+    });
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Helper: Show user detail
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function showUserDetail(bot, chatId, messageId, lang, userId) {
+  const user = userQueries.findById.get(userId);
+  if (!user) {
+    return bot.editMessageText(t(lang, 'user_not_found'), {
+      chat_id: chatId,
+      message_id: messageId,
+      ...adminMenuKeyboard(lang),
+    }).catch(() => {});
+  }
+
+  const text = t(lang, 'user_detail', {
+    name: escapeMarkdown(user.full_name),
+    region: escapeMarkdown(user.region),
+    year: String(user.birth_year),
+    password: user.password,
+    created: escapeMarkdown(user.created_at),
+  });
+
+  bot.editMessageText(text, {
+    chat_id: chatId,
+    message_id: messageId,
+    parse_mode: 'MarkdownV2',
+    ...userDetailKeyboard(lang, userId),
+  }).catch(() => {
+    bot.sendMessage(chatId, text, {
+      parse_mode: 'MarkdownV2',
+      ...userDetailKeyboard(lang, userId),
+    });
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Helper: Show user stats (admin viewing a specific user)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period) {
+  const user = userQueries.findById.get(userId);
+  if (!user) return;
+
+  const { start, end } = getDateRange(period);
+  const patients = patientQueries.getByUserAndDateRange.all(userId, start, end);
+  const count = patients.length;
+
+  const periodKey = `period_${period}`;
+  const userName = escapeMarkdown(user.full_name);
+
+  let text = t(lang, 'stats_title', { name: userName, period: t(lang, periodKey) }) + '\n\n';
+  text += t(lang, 'stats_total', { count: String(count) }) + '\n\n';
+
+  if (patients.length === 0) {
+    text += t(lang, 'stats_empty');
+  } else {
+    patients.forEach((p, i) => {
+      text += t(lang, 'stats_patient_row', {
+        i: String(i + 1),
+        name: escapeMarkdown(p.full_name),
+        region: escapeMarkdown(p.region),
+        year: String(p.birth_year),
+        department: escapeMarkdown(p.department),
+      }) + '\n';
+    });
+  }
+
+  bot.editMessageText(text, {
+    chat_id: chatId,
+    message_id: messageId,
+    parse_mode: 'MarkdownV2',
+    ...userDetailKeyboard(lang, userId),
+  }).catch(() => {
+    bot.sendMessage(chatId, text, {
+      parse_mode: 'MarkdownV2',
+      ...userDetailKeyboard(lang, userId),
+    });
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Helper: Show overall stats
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function showOverallStats(bot, chatId, messageId, lang, period) {
+  const { start, end } = getDateRange(period);
+  const totalRow = patientQueries.countByDateRange.get(start, end);
+  const perUser = patientQueries.countPerUserByDateRange.all(start, end);
+
+  const periodKey = `period_${period}`;
+  let text = t(lang, 'overall_stats_title', { period: t(lang, periodKey) }) + '\n\n';
+  text += t(lang, 'overall_stats_total', { count: String(totalRow.count) }) + '\n\n';
+
+  if (perUser.length === 0 || totalRow.count === 0) {
+    text += t(lang, 'overall_stats_empty');
+  } else {
+    perUser.forEach((u) => {
+      text += t(lang, 'overall_stats_by_user', {
+        name: escapeMarkdown(u.full_name),
+        count: String(u.count),
+      }) + '\n';
+    });
+  }
+
+  bot.editMessageText(text, {
+    chat_id: chatId,
+    message_id: messageId,
+    parse_mode: 'MarkdownV2',
+    ...overallStatsKeyboard(lang),
+  }).catch(() => {
+    bot.sendMessage(chatId, text, {
+      parse_mode: 'MarkdownV2',
+      ...overallStatsKeyboard(lang),
+    });
+  });
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//  Admin back-to-menu callback
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+function handleAdminBackToMenu(bot) {
+  bot.on('callback_query', (query) => {
+    if (query.data !== 'admin_back_to_menu') return;
+    const chatId = query.message.chat.id;
+    if (!isAdmin(chatId)) return;
+
+    const session = getSession(chatId);
+    const lang = session.lang || 'uz_latin';
+    bot.answerCallbackQuery(query.id);
+
+    bot.editMessageText(t(lang, 'admin_welcome'), {
+      chat_id: chatId,
+      message_id: query.message.message_id,
+      ...adminMenuKeyboard(lang),
+    }).catch(() => {
+      bot.sendMessage(chatId, t(lang, 'admin_welcome'), adminMenuKeyboard(lang));
+    });
+  });
+}
+
+module.exports = {
+  handleAdminCallbacks,
+  handleAdminTextInput,
+  handleAdminBackToMenu,
+};

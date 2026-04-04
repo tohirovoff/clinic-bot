@@ -1,0 +1,21 @@
+{
+  "name": "clinic-referral-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot for clinic referral tracking",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "db:init": "node src/database/init.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.7.0",
+    "dotenv": "^16.4.7",
+    "node-telegram-bot-api": "^0.66.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "keywords": ["telegram", "bot", "clinic", "referral"],
+  "license": "MIT"
+}
