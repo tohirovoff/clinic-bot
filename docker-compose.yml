@@ -1,0 +1,11 @@
+services:
+  clinic-bot:
+    image: rayyandev/clinic-bot:latest
+    container_name: clinic-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - clinic-bot-data:/app/data
+
+volumes:
+  clinic-bot-data:
