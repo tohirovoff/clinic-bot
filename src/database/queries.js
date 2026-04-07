@@ -134,4 +134,48 @@ const sessionQueries = {
   `),
 };
 
-module.exports = { userQueries, patientQueries, sessionQueries };
+// ─── Payment Queries ─────────────────────────────────────────────────
+
+const paymentQueries = {
+  create: db.prepare(`
+    INSERT INTO payments (user_id, amount, admin_id)
+    VALUES (@user_id, @amount, @admin_id)
+  `),
+
+  /** Get all payments by user within a date range */
+  getByUserAndDateRange: db.prepare(`
+    SELECT * FROM payments
+    WHERE user_id = ?
+      AND created_at >= ?
+      AND created_at < ?
+    ORDER BY created_at DESC
+  `),
+
+  /** Sum amount per user within a date range */
+  sumByUserAndDateRange: db.prepare(`
+    SELECT SUM(amount) as total FROM payments
+    WHERE user_id = ?
+      AND created_at >= ?
+      AND created_at < ?
+  `),
+
+  /** Sum per user within a date range (for overall stats) */
+  sumPerUserByDateRange: db.prepare(`
+    SELECT u.id, u.full_name, SUM(py.amount) as total
+    FROM users u
+    LEFT JOIN payments py ON py.user_id = u.id
+      AND py.created_at >= ?
+      AND py.created_at < ?
+    GROUP BY u.id
+    ORDER BY total DESC
+  `),
+
+  /** Total sum in a date range */
+  sumByDateRange: db.prepare(`
+    SELECT SUM(amount) as total FROM payments
+    WHERE created_at >= ?
+      AND created_at < ?
+  `),
+};
+
+module.exports = { userQueries, patientQueries, sessionQueries, paymentQueries };

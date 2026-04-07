@@ -101,4 +101,13 @@ module.exports = {
   confirm_yes: "✅ Ҳа, ўчириш",
   confirm_no: "❌ Йўқ",
   user_deleted: "✅ *{name}* муваффақиятли ўчирилди\\.",
+
+  // Payments
+  admin_add_payment: "💸 Тўлов қўшиш",
+  enter_payment_amount: "💸 Тўлов суммасини киритинг (масалан: 1000000):",
+  invalid_amount: "❌ Нотўғри сумма! Фақат рақамлардан иборат бўлиши керак (масалан: 1000000):",
+  payment_added_success: "✅ Тўлов муваффақиятли қўшилди\\!\n\n👤 Шифокор: *{name}*\n💸 Сумма: *{amount}* сўм",
+  stats_total_payment: "💸 Жами тўлов: *{amount}* сўм",
+  stats_payment_row: "{i}\\. 💸 {amount} сўм \\({date}\\)",
+  overall_stats_total_payment: "💸 Барча тўловлар жамланмаси: *{amount}* сўм",
 };

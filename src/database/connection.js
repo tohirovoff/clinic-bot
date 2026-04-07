@@ -46,6 +46,15 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS payments (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id       INTEGER NOT NULL,
+    amount        INTEGER NOT NULL,
+    admin_id      INTEGER NOT NULL,
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
   CREATE INDEX IF NOT EXISTS idx_patients_user_id   ON patients(user_id);
   CREATE INDEX IF NOT EXISTS idx_patients_created_at ON patients(created_at);
   CREATE INDEX IF NOT EXISTS idx_users_password      ON users(password);

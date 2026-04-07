@@ -3,6 +3,7 @@ const {
   userQueries,
   patientQueries,
   sessionQueries,
+  paymentQueries,
 } = require('../database/queries');
 const { getSession, isAdmin, isSuperAdmin, isSubAdmin, escapeMarkdown } = require('../utils/helpers');
 const { generatePassword } = require('../utils/password');
@@ -183,6 +184,24 @@ function handleAdminCallbacks(bot) {
       const userId = parseInt(parts[1], 10);
       const period = parts[2];
       return showUserStatsForAdmin(bot, chatId, query.message.message_id, lang, userId, period, isSuperAdmin(chatId));
+    }
+
+    // ── Add Payment (ALL ADMINS) ──────────────────────────────────
+    if (data.startsWith('add_payment:')) {
+      bot.answerCallbackQuery(query.id).catch(() => {});
+      const userId = parseInt(data.split(':')[1], 10);
+      sessionQueries.setState.run(
+        'admin_add_payment_amount',
+        JSON.stringify({ user_id: userId }),
+        chatId
+      );
+      return bot.editMessageText(t(lang, 'enter_payment_amount'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...cancelKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'enter_payment_amount'), cancelKeyboard(lang));
+      });
     }
 
     // ── Delete User (confirm — SUPER ADMIN ONLY) ─────────────────
@@ -399,6 +418,44 @@ function handleAdminTextInput(bot) {
         break;
       }
 
+      // ── Add Payment Flow (ALL ADMINS) ─────────────────────────
+      case 'admin_add_payment_amount': {
+        const amountStr = input.replace(/\D/g, ''); // Extract only numbers
+        const amount = parseInt(amountStr, 10);
+        
+        if (isNaN(amount) || amount <= 0) {
+          return bot.sendMessage(chatId, t(lang, 'invalid_amount'), cancelKeyboard(lang));
+        }
+
+        const userId = stateData.user_id;
+
+        try {
+          paymentQueries.create.run({
+            user_id: userId,
+            amount: amount,
+            admin_id: chatId,
+          });
+        } catch (err) {
+          console.error('Error creating payment:', err);
+          sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
+        }
+
+        const user = userQueries.findById.get(userId);
+        sessionQueries.clearState.run(chatId);
+
+        const successText = t(lang, 'payment_added_success', {
+          name: escapeMarkdown(user ? user.full_name : '—'),
+          amount: escapeMarkdown(amount.toLocaleString('ru-RU').replace(/,/g, ' ')),
+        });
+
+        bot.sendMessage(chatId, successText, {
+          parse_mode: 'MarkdownV2',
+          ...getMenuKeyboard(chatId, lang),
+        });
+        break;
+      }
+
       default:
         break;
     }
@@ -494,15 +551,17 @@ function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isS
   const patients = patientQueries.getByUserAndDateRange.all(userId, start, end);
   const count = patients.length;
 
+  const payments = paymentQueries.getByUserAndDateRange.all(userId, start, end);
+  const paymentSumRow = paymentQueries.sumByUserAndDateRange.get(userId, start, end);
+  const paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
+
   const periodKey = `period_${period}`;
   const userName = escapeMarkdown(user.full_name);
 
   let text = t(lang, 'stats_title', { name: userName, period: t(lang, periodKey) }) + '\n\n';
   text += t(lang, 'stats_total', { count: String(count) }) + '\n\n';
 
-  if (patients.length === 0) {
-    text += t(lang, 'stats_empty');
-  } else {
+  if (patients.length > 0) {
     patients.forEach((p, i) => {
       text += t(lang, 'stats_patient_row', {
         i: String(i + 1),
@@ -512,6 +571,24 @@ function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isS
         department: escapeMarkdown(p.department),
       }) + '\n';
     });
+    text += '\n';
+  }
+
+  text += t(lang, 'stats_total_payment', { amount: escapeMarkdown(paymentTotal.toLocaleString('ru-RU').replace(/,/g, ' ')) }) + '\n\n';
+
+  if (payments.length > 0) {
+    payments.forEach((py, i) => {
+      const datePart = py.created_at.split(' ')[0] + ' ' + py.created_at.split(' ')[1].substring(0, 5);
+      text += t(lang, 'stats_payment_row', {
+        i: String(i + 1),
+        amount: escapeMarkdown(py.amount.toLocaleString('ru-RU').replace(/,/g, ' ')),
+        date: escapeMarkdown(datePart)
+      }) + '\n';
+    });
+  }
+
+  if (patients.length === 0 && payments.length === 0) {
+    text += t(lang, 'stats_empty');
   }
 
   bot.editMessageText(text, {
@@ -536,18 +613,40 @@ function showOverallStats(bot, chatId, messageId, lang, period) {
   const totalRow = patientQueries.countByDateRange.get(start, end);
   const perUser = patientQueries.countPerUserByDateRange.all(start, end);
 
+  const paymentSumRow = paymentQueries.sumByDateRange.get(start, end);
+  const totalPayment = paymentSumRow ? (paymentSumRow.total || 0) : 0;
+  const paymentPerUser = paymentQueries.sumPerUserByDateRange.all(start, end);
+
   const periodKey = `period_${period}`;
   let text = t(lang, 'overall_stats_title', { period: t(lang, periodKey) }) + '\n\n';
-  text += t(lang, 'overall_stats_total', { count: String(totalRow.count) }) + '\n\n';
+  text += t(lang, 'overall_stats_total', { count: String(totalRow.count) }) + '\n';
+  text += t(lang, 'overall_stats_total_payment', { amount: escapeMarkdown(totalPayment.toLocaleString('ru-RU').replace(/,/g, ' ')) }) + '\n\n';
 
-  if (perUser.length === 0 || totalRow.count === 0) {
+  const usersMap = {};
+  perUser.forEach(u => {
+    usersMap[u.id] = { name: u.full_name, patients: u.count, payments: 0 };
+  });
+  paymentPerUser.forEach(p => {
+    if (!usersMap[p.id]) {
+      usersMap[p.id] = { name: p.full_name, patients: 0, payments: p.total || 0 };
+    } else {
+      usersMap[p.id].payments = p.total || 0;
+    }
+  });
+
+  const merged = Object.values(usersMap).sort((a, b) => b.patients - a.patients);
+
+  if (merged.length === 0) {
     text += t(lang, 'overall_stats_empty');
   } else {
-    perUser.forEach((u) => {
+    merged.forEach((u) => {
       text += t(lang, 'overall_stats_by_user', {
-        name: escapeMarkdown(u.full_name),
-        count: String(u.count),
+        name: escapeMarkdown(u.name),
+        count: String(u.patients),
       }) + '\n';
+      if (u.payments > 0) {
+        text += '  ' + t(lang, 'stats_total_payment', { amount: escapeMarkdown(u.payments.toLocaleString('ru-RU').replace(/,/g, ' ')) }) + '\n';
+      }
     });
   }
 

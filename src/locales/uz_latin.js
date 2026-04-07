@@ -101,4 +101,13 @@ module.exports = {
   confirm_yes: "✅ Ha, o'chirish",
   confirm_no: "❌ Yo'q",
   user_deleted: "✅ *{name}* muvaffaqiyatli o'chirildi\\.",
+
+  // Payments
+  admin_add_payment: "💸 To'lov qo'shish",
+  enter_payment_amount: "💸 To'lov summasini kiriting (masalan: 1000000):",
+  invalid_amount: "❌ Noto'g'ri summa! Faqat raqamlardan iborat bo'lishi kerak (masalan: 1000000):",
+  payment_added_success: "✅ To'lov muvaffaqiyatli qo'shildi\\!\n\n👤 Shifokor: *{name}*\n💸 Summa: *{amount}* so'm",
+  stats_total_payment: "💸 Jami to'lov: *{amount}* so'm",
+  stats_payment_row: "{i}\\. 💸 {amount} so'm \\({date}\\)",
+  overall_stats_total_payment: "💸 Barcha to'lovlar jamlanmasi: *{amount}* so'm",
 };

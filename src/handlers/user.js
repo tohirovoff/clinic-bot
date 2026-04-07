@@ -52,6 +52,11 @@ function handleUserStats(bot) {
     const patients = patientQueries.getByUserAndDateRange.all(session.user_id, start, end);
     const count = patients.length;
 
+    const paymentQueries = require('../database/queries').paymentQueries;
+    const payments = paymentQueries.getByUserAndDateRange.all(session.user_id, start, end);
+    const paymentSumRow = paymentQueries.sumByUserAndDateRange.get(session.user_id, start, end);
+    const paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
+
     const periodKey = `period_${period}`;
     const user = require('../database/queries').userQueries.findById.get(session.user_id);
     const userName = user ? escapeMarkdown(user.full_name) : '—';
@@ -59,9 +64,7 @@ function handleUserStats(bot) {
     let text = t(lang, 'stats_title', { name: userName, period: t(lang, periodKey) }) + '\n\n';
     text += t(lang, 'stats_total', { count: String(count) }) + '\n\n';
 
-    if (patients.length === 0) {
-      text += t(lang, 'stats_empty');
-    } else {
+    if (patients.length > 0) {
       patients.forEach((p, i) => {
         text += t(lang, 'stats_patient_row', {
           i: String(i + 1),
@@ -71,6 +74,24 @@ function handleUserStats(bot) {
           department: escapeMarkdown(p.department),
         }) + '\n';
       });
+      text += '\n';
+    }
+
+    text += t(lang, 'stats_total_payment', { amount: escapeMarkdown(paymentTotal.toLocaleString('ru-RU').replace(/,/g, ' ')) }) + '\n\n';
+
+    if (payments.length > 0) {
+      payments.forEach((py, i) => {
+        const datePart = py.created_at.split(' ')[0] + ' ' + py.created_at.split(' ')[1].substring(0, 5);
+        text += t(lang, 'stats_payment_row', {
+          i: String(i + 1),
+          amount: escapeMarkdown(py.amount.toLocaleString('ru-RU').replace(/,/g, ' ')),
+          date: escapeMarkdown(datePart)
+        }) + '\n';
+      });
+    }
+
+    if (patients.length === 0 && payments.length === 0) {
+      text += t(lang, 'stats_empty');
     }
 
     bot.editMessageText(text, {

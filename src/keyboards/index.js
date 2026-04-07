@@ -106,6 +106,7 @@ function userDetailKeyboard(lang, userId, isSuper = false) {
     kb.push([{ text: t(lang, 'admin_delete_user'), callback_data: `delete_user:${userId}` }]);
   }
 
+  kb.push([{ text: t(lang, 'admin_add_payment'), callback_data: `add_payment:${userId}` }]);
   kb.push([{ text: t(lang, 'back'), callback_data: 'admin:user_list' }]);
   
   return inlineKeyboard(kb);
