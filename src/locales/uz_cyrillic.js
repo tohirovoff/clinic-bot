@@ -53,9 +53,9 @@ module.exports = {
   enter_patient_region: "📍 Бемор қаердан (вилоят/шаҳар):",
   enter_patient_birthyear: "📅 Бемор туғилган йилини киритинг (масалан: 1985):",
   enter_patient_department: "🏥 Бемор қайси бўлимга келди?",
-  dept_rentgen: "Рентген",
-  dept_uzi: "Аёллар УЗИ",
-  dept_pediatr: "Болалар шифокори",
+  dept_rentgen: "Ренген",
+  dept_uzi: "Аёллар узиси",
+  dept_pediatr: "Узи",
   patient_added_success:
     "✅ Бемор муваффақиятли қўшилди\\!\n\n" +
     "👤 Бемор: *{name}*\n" +

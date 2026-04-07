@@ -144,9 +144,9 @@ function handleAdminCallbacks(bot) {
       sessionQueries.clearState.run(chatId);
 
       let deptText = department;
-      if (department === 'Rentgen') deptText = t(lang, 'dept_rentgen');
-      if (department === 'Ayollar UZI') deptText = t(lang, 'dept_uzi');
-      if (department === 'Bolalar shifokori') deptText = t(lang, 'dept_pediatr');
+      if (department === 'Rengen') deptText = t(lang, 'dept_rentgen');
+      if (department === 'Ayollar uzisi') deptText = t(lang, 'dept_uzi');
+      if (department === 'Uzi') deptText = t(lang, 'dept_pediatr');
 
       const successText = t(lang, 'patient_added_success', {
         name: escapeMarkdown(stateData.full_name),

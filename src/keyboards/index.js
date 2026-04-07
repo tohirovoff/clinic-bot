@@ -74,9 +74,9 @@ function cancelKeyboard(lang) {
 
 function departmentKeyboard(lang) {
   return inlineKeyboard([
-    [{ text: t(lang, 'dept_rentgen'), callback_data: 'select_dept:Rentgen' }],
-    [{ text: t(lang, 'dept_uzi'), callback_data: 'select_dept:Ayollar UZI' }],
-    [{ text: t(lang, 'dept_pediatr'), callback_data: 'select_dept:Bolalar shifokori' }],
+    [{ text: t(lang, 'dept_rentgen'), callback_data: 'select_dept:Rengen' }],
+    [{ text: t(lang, 'dept_uzi'), callback_data: 'select_dept:Ayollar uzisi' }],
+    [{ text: t(lang, 'dept_pediatr'), callback_data: 'select_dept:Uzi' }],
     [{ text: t(lang, 'cancel'), callback_data: 'cancel' }],
   ]);
 }
