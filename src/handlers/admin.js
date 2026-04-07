@@ -4,11 +4,12 @@ const {
   patientQueries,
   sessionQueries,
 } = require('../database/queries');
-const { getSession, isAdmin, escapeMarkdown } = require('../utils/helpers');
+const { getSession, isAdmin, isSuperAdmin, isSubAdmin, escapeMarkdown } = require('../utils/helpers');
 const { generatePassword } = require('../utils/password');
 const { getDateRange } = require('../utils/dates');
 const {
   adminMenuKeyboard,
+  subAdminMenuKeyboard,
   cancelKeyboard,
   inlineKeyboard,
   overallStatsKeyboard,
@@ -16,6 +17,16 @@ const {
   confirmDeleteKeyboard,
   departmentKeyboard,
 } = require('../keyboards');
+
+/**
+ * Get the correct menu keyboard for the admin role.
+ */
+function getMenuKeyboard(chatId, lang) {
+  if (isSuperAdmin(chatId)) {
+    return adminMenuKeyboard(lang);
+  }
+  return subAdminMenuKeyboard(lang);
+}
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //  Admin menu callback handler
@@ -35,12 +46,15 @@ function handleAdminCallbacks(bot) {
       bot.answerCallbackQuery(query.id).catch(() => {});
       sessionQueries.clearState.run(chatId);
       bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-      return bot.sendMessage(chatId, t(lang, 'cancelled'), adminMenuKeyboard(lang));
+      return bot.sendMessage(chatId, t(lang, 'cancelled'), getMenuKeyboard(chatId, lang));
     }
 
-    // ── Add User ──────────────────────────────────────────────────
+    // ── Add User (SUPER ADMIN ONLY) ──────────────────────────────
     if (data === 'admin:add_user') {
       bot.answerCallbackQuery(query.id).catch(() => {});
+      if (!isSuperAdmin(chatId)) {
+        return bot.sendMessage(chatId, '⛔ Sizda bu amalni bajarishga ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
+      }
       sessionQueries.setState.run('admin_add_user_name', null, chatId);
       return bot.editMessageText(t(lang, 'enter_user_fullname'), {
         chat_id: chatId,
@@ -60,11 +74,11 @@ function handleAdminCallbacks(bot) {
           chat_id: chatId,
           message_id: query.message.message_id,
           parse_mode: 'MarkdownV2',
-          ...adminMenuKeyboard(lang),
+          ...getMenuKeyboard(chatId, lang),
         }).catch(() => {
           bot.sendMessage(chatId, t(lang, 'user_list_empty'), {
             parse_mode: 'MarkdownV2',
-            ...adminMenuKeyboard(lang),
+            ...getMenuKeyboard(chatId, lang),
           });
         });
       }
@@ -123,7 +137,7 @@ function handleAdminCallbacks(bot) {
         console.error('Error creating patient:', err);
         sessionQueries.clearState.run(chatId);
         bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
-        return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', adminMenuKeyboard(lang));
+        return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
       }
 
       const user = userQueries.findById.get(stateData.user_id);
@@ -145,35 +159,38 @@ function handleAdminCallbacks(bot) {
       bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
       return bot.sendMessage(chatId, successText, {
         parse_mode: 'MarkdownV2',
-        ...adminMenuKeyboard(lang),
+        ...getMenuKeyboard(chatId, lang),
       });
     }
 
-    // ── User List ─────────────────────────────────────────────────
+    // ── User List (ALL ADMINS) ─────────────────────────────
     if (data === 'admin:user_list') {
       bot.answerCallbackQuery(query.id).catch(() => {});
       return showUserList(bot, chatId, query.message.message_id, lang);
     }
 
-    // ── User Detail ───────────────────────────────────────────────
+    // ── User Detail (ALL ADMINS) ───────────────────────────
     if (data.startsWith('user_detail:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
-      return showUserDetail(bot, chatId, query.message.message_id, lang, userId);
+      return showUserDetail(bot, chatId, query.message.message_id, lang, userId, isSuperAdmin(chatId));
     }
 
-    // ── User Stats (admin viewing a user) ─────────────────────────
+    // ── User Stats (admin viewing a user — ALL ADMINS) ─────
     if (data.startsWith('admin_user_stats:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
       const parts = data.split(':');
       const userId = parseInt(parts[1], 10);
       const period = parts[2];
-      return showUserStatsForAdmin(bot, chatId, query.message.message_id, lang, userId, period);
+      return showUserStatsForAdmin(bot, chatId, query.message.message_id, lang, userId, period, isSuperAdmin(chatId));
     }
 
-    // ── Delete User (confirm) ─────────────────────────────────────
+    // ── Delete User (confirm — SUPER ADMIN ONLY) ─────────────────
     if (data.startsWith('delete_user:') && !data.startsWith('delete_user_yes:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
+      if (!isSuperAdmin(chatId)) {
+        return bot.sendMessage(chatId, '⛔ Sizda bu amalni bajarishga ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
+      }
       const userId = parseInt(data.split(':')[1], 10);
       const user = userQueries.findById.get(userId);
       if (!user) return;
@@ -192,9 +209,12 @@ function handleAdminCallbacks(bot) {
       });
     }
 
-    // ── Delete User (execute) ─────────────────────────────────────
+    // ── Delete User (execute — SUPER ADMIN ONLY) ─────────────────
     if (data.startsWith('delete_user_yes:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
+      if (!isSuperAdmin(chatId)) {
+        return bot.sendMessage(chatId, '⛔ Sizda bu amalni bajarishga ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
+      }
       const userId = parseInt(data.split(':')[1], 10);
       const user = userQueries.findById.get(userId);
       if (!user) return;
@@ -237,9 +257,9 @@ function handleAdminCallbacks(bot) {
         return bot.editMessageText(t(lang, 'admin_welcome'), {
           chat_id: chatId,
           message_id: query.message.message_id,
-          ...adminMenuKeyboard(lang),
+          ...getMenuKeyboard(chatId, lang),
         }).catch(() => {
-          bot.sendMessage(chatId, t(lang, 'admin_welcome'), adminMenuKeyboard(lang));
+          bot.sendMessage(chatId, t(lang, 'admin_welcome'), getMenuKeyboard(chatId, lang));
         });
       }
 
@@ -269,8 +289,12 @@ function handleAdminTextInput(bot) {
     const input = msg.text.trim();
 
     switch (session.state) {
-      // ── Add User Flow ────────────────────────────────────────
+      // ── Add User Flow (SUPER ADMIN ONLY) ────────────────────
       case 'admin_add_user_name': {
+        if (!isSuperAdmin(chatId)) {
+          sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
+        }
         stateData.full_name = input;
         sessionQueries.setState.run(
           'admin_add_user_region',
@@ -282,6 +306,10 @@ function handleAdminTextInput(bot) {
       }
 
       case 'admin_add_user_region': {
+        if (!isSuperAdmin(chatId)) {
+          sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
+        }
         stateData.region = input;
         sessionQueries.setState.run(
           'admin_add_user_year',
@@ -293,6 +321,10 @@ function handleAdminTextInput(bot) {
       }
 
       case 'admin_add_user_year': {
+        if (!isSuperAdmin(chatId)) {
+          sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
+        }
         const year = parseInt(input, 10);
         if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
           return bot.sendMessage(chatId, t(lang, 'invalid_year'), cancelKeyboard(lang));
@@ -328,7 +360,7 @@ function handleAdminTextInput(bot) {
         break;
       }
 
-      // ── Add Patient Flow ─────────────────────────────────────
+      // ── Add Patient Flow (ALL ADMINS) ─────────────────────────
       case 'admin_add_patient_name': {
         stateData.full_name = input;
         sessionQueries.setState.run(
@@ -374,7 +406,7 @@ function handleAdminTextInput(bot) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Helper: Show user list
+//  Helper: Show user list (ALL ADMINS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function showUserList(bot, chatId, messageId, lang) {
@@ -385,11 +417,11 @@ function showUserList(bot, chatId, messageId, lang) {
       chat_id: chatId,
       message_id: messageId,
       parse_mode: 'MarkdownV2',
-      ...adminMenuKeyboard(lang),
+      ...getMenuKeyboard(chatId, lang),
     }).catch(() => {
       bot.sendMessage(chatId, t(lang, 'user_list_empty'), {
         parse_mode: 'MarkdownV2',
-        ...adminMenuKeyboard(lang),
+        ...getMenuKeyboard(chatId, lang),
       });
     });
   }
@@ -416,16 +448,16 @@ function showUserList(bot, chatId, messageId, lang) {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Helper: Show user detail
+//  Helper: Show user detail (ALL ADMINS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function showUserDetail(bot, chatId, messageId, lang, userId) {
+function showUserDetail(bot, chatId, messageId, lang, userId, isSuper) {
   const user = userQueries.findById.get(userId);
   if (!user) {
     return bot.editMessageText(t(lang, 'user_not_found'), {
       chat_id: chatId,
       message_id: messageId,
-      ...adminMenuKeyboard(lang),
+      ...getMenuKeyboard(chatId, lang),
     }).catch(() => {});
   }
 
@@ -441,20 +473,20 @@ function showUserDetail(bot, chatId, messageId, lang, userId) {
     chat_id: chatId,
     message_id: messageId,
     parse_mode: 'MarkdownV2',
-    ...userDetailKeyboard(lang, userId),
+    ...userDetailKeyboard(lang, userId, isSuper),
   }).catch(() => {
     bot.sendMessage(chatId, text, {
       parse_mode: 'MarkdownV2',
-      ...userDetailKeyboard(lang, userId),
+      ...userDetailKeyboard(lang, userId, isSuper),
     });
   });
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Helper: Show user stats (admin viewing a specific user)
+//  Helper: Show user stats (ALL ADMINS viewing a specific user)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period) {
+function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isSuper) {
   const user = userQueries.findById.get(userId);
   if (!user) return;
 
@@ -486,17 +518,17 @@ function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period) {
     chat_id: chatId,
     message_id: messageId,
     parse_mode: 'MarkdownV2',
-    ...userDetailKeyboard(lang, userId),
+    ...userDetailKeyboard(lang, userId, isSuper),
   }).catch(() => {
     bot.sendMessage(chatId, text, {
       parse_mode: 'MarkdownV2',
-      ...userDetailKeyboard(lang, userId),
+      ...userDetailKeyboard(lang, userId, isSuper),
     });
   });
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  Helper: Show overall stats
+//  Helper: Show overall stats (ALL ADMINS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function showOverallStats(bot, chatId, messageId, lang, period) {
@@ -549,9 +581,9 @@ function handleAdminBackToMenu(bot) {
     bot.editMessageText(t(lang, 'admin_welcome'), {
       chat_id: chatId,
       message_id: query.message.message_id,
-      ...adminMenuKeyboard(lang),
+      ...getMenuKeyboard(chatId, lang),
     }).catch(() => {
-      bot.sendMessage(chatId, t(lang, 'admin_welcome'), adminMenuKeyboard(lang));
+      bot.sendMessage(chatId, t(lang, 'admin_welcome'), getMenuKeyboard(chatId, lang));
     });
   });
 }

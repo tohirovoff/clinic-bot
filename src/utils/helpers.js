@@ -21,10 +21,24 @@ function getSession(telegramId) {
 }
 
 /**
- * Check if user is admin.
+ * Check if user is any admin (super or sub).
  */
 function isAdmin(telegramId) {
+  return config.ALL_ADMINS.includes(telegramId);
+}
+
+/**
+ * Check if user is the SUPER admin (full access).
+ */
+function isSuperAdmin(telegramId) {
   return telegramId === config.ADMIN_ID;
+}
+
+/**
+ * Check if user is a SUB admin (limited access: add patients, view stats).
+ */
+function isSubAdmin(telegramId) {
+  return config.SUB_ADMINS.includes(telegramId);
 }
 
 /**
@@ -51,4 +65,4 @@ function escapeMarkdown(text) {
   return String(text).replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, '\\$1');
 }
 
-module.exports = { getSession, isAdmin, isAuthorized, getLang, escapeMarkdown };
+module.exports = { getSession, isAdmin, isSuperAdmin, isSubAdmin, isAuthorized, getLang, escapeMarkdown };

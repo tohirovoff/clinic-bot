@@ -54,6 +54,14 @@ function adminMenuKeyboard(lang) {
   ]);
 }
 
+function subAdminMenuKeyboard(lang) {
+  return inlineKeyboard([
+    [{ text: t(lang, 'admin_add_patient'), callback_data: 'admin:add_patient' }],
+    [{ text: t(lang, 'admin_user_list'), callback_data: 'admin:user_list' }],
+    [{ text: t(lang, 'admin_overall_stats'), callback_data: 'admin:overall_stats' }],
+  ]);
+}
+
 function overallStatsKeyboard(lang) {
   return statsKeyboard(lang, 'overall_stats');
 }
@@ -82,8 +90,8 @@ function confirmDeleteKeyboard(lang, userId) {
   ]);
 }
 
-function userDetailKeyboard(lang, userId) {
-  return inlineKeyboard([
+function userDetailKeyboard(lang, userId, isSuper = false) {
+  const kb = [
     [
       { text: t(lang, 'stats_daily'), callback_data: `admin_user_stats:${userId}:daily` },
       { text: t(lang, 'stats_weekly'), callback_data: `admin_user_stats:${userId}:weekly` },
@@ -91,12 +99,16 @@ function userDetailKeyboard(lang, userId) {
     [
       { text: t(lang, 'stats_monthly'), callback_data: `admin_user_stats:${userId}:monthly` },
       { text: t(lang, 'stats_yearly'), callback_data: `admin_user_stats:${userId}:yearly` },
-    ],
-    [
-      { text: t(lang, 'admin_delete_user'), callback_data: `delete_user:${userId}` },
-    ],
-    [{ text: t(lang, 'back'), callback_data: 'admin:user_list' }],
-  ]);
+    ]
+  ];
+
+  if (isSuper) {
+    kb.push([{ text: t(lang, 'admin_delete_user'), callback_data: `delete_user:${userId}` }]);
+  }
+
+  kb.push([{ text: t(lang, 'back'), callback_data: 'admin:user_list' }]);
+  
+  return inlineKeyboard(kb);
 }
 
 module.exports = {
@@ -106,6 +118,7 @@ module.exports = {
   userMenuKeyboard,
   statsKeyboard,
   adminMenuKeyboard,
+  subAdminMenuKeyboard,
   overallStatsKeyboard,
   cancelKeyboard,
   departmentKeyboard,

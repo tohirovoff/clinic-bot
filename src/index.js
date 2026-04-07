@@ -1,6 +1,7 @@
 const TelegramBot = require("node-telegram-bot-api");
 const config = require("./config");
 const { registerHandlers } = require("./handlers");
+const { startReminderScheduler } = require("./utils/reminder");
 
 // ─── Initialize Bot ──────────────────────────────────────────────────
 const bot = new TelegramBot(config.BOT_TOKEN, {
@@ -22,6 +23,9 @@ console.log("━━━━━━━━━━━━━━━━━━━━━━�
 
 // ─── Register All Handlers ──────────────────────────────────────────
 registerHandlers(bot);
+
+// ─── Start Reminder Scheduler (kuniga 2 marta: 09:00 va 18:00) ─────
+startReminderScheduler(bot);
 
 // ─── Error Handling ─────────────────────────────────────────────────
 bot.on("polling_error", (error) => {

@@ -1,13 +1,24 @@
 const { t } = require('../locales');
 const { sessionQueries } = require('../database/queries');
-const { getSession, isAdmin } = require('../utils/helpers');
+const { getSession, isAdmin, isSuperAdmin, isSubAdmin } = require('../utils/helpers');
 const config = require('../config');
 const {
   langKeyboard,
   registrationKeyboard,
   adminMenuKeyboard,
+  subAdminMenuKeyboard,
   userMenuKeyboard,
 } = require('../keyboards');
+
+/**
+ * Get the right menu keyboard for an admin based on their role.
+ */
+function getAdminKeyboard(chatId, lang) {
+  if (isSuperAdmin(chatId)) {
+    return adminMenuKeyboard(lang);
+  }
+  return subAdminMenuKeyboard(lang);
+}
 
 /**
  * Handle /start command.
@@ -23,7 +34,7 @@ function handleStart(bot) {
         const lang = session.lang || 'uz_latin';
         return bot.sendMessage(chatId, t(lang, 'admin_welcome'), {
           parse_mode: 'MarkdownV2',
-          ...adminMenuKeyboard(lang),
+          ...getAdminKeyboard(chatId, lang),
         });
       } else {
         const lang = session.lang || 'uz_latin';
@@ -55,11 +66,11 @@ function handleLangSelection(bot) {
     // Delete the language selection message
     bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
 
-    // If admin, go straight to admin menu
+    // If admin (super or sub), go straight to admin menu
     if (isAdmin(chatId)) {
       return bot.sendMessage(chatId, t(lang, 'admin_welcome'), {
         parse_mode: 'MarkdownV2',
-        ...adminMenuKeyboard(lang),
+        ...getAdminKeyboard(chatId, lang),
       });
     }
 
