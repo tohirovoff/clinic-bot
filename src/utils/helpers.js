@@ -5,17 +5,17 @@ const { t } = require('../locales');
 /**
  * Get session for a Telegram user (creates one if missing).
  */
-function getSession(telegramId) {
-  let session = sessionQueries.get.get(telegramId);
+async function getSession(telegramId) {
+  let session = await sessionQueries.get.get(telegramId);
   if (!session) {
-    sessionQueries.upsert.run({
+    await sessionQueries.upsert.run({
       telegram_id: telegramId,
       user_id: null,
       lang: 'uz_latin',
       state: null,
       state_data: null,
     });
-    session = sessionQueries.get.get(telegramId);
+    session = await sessionQueries.get.get(telegramId);
   }
   return session;
 }
@@ -44,16 +44,16 @@ function isSubAdmin(telegramId) {
 /**
  * Check if user is authorized (logged in).
  */
-function isAuthorized(telegramId) {
-  const session = getSession(telegramId);
+async function isAuthorized(telegramId) {
+  const session = await getSession(telegramId);
   return session && session.user_id !== null;
 }
 
 /**
  * Get language for user.
  */
-function getLang(telegramId) {
-  const session = getSession(telegramId);
+async function getLang(telegramId) {
+  const session = await getSession(telegramId);
   return session ? session.lang : 'uz_latin';
 }
 

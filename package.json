@@ -9,7 +9,7 @@
     "db:init": "node src/database/init.js"
   },
   "dependencies": {
-    "better-sqlite3": "^11.7.0",
+    "pg": "^8.13.0",
     "dotenv": "^16.4.7",
     "node-cron": "^4.2.1",
     "node-telegram-bot-api": "^0.66.0"

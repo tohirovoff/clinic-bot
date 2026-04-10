@@ -24,9 +24,9 @@ function getAdminKeyboard(chatId, lang) {
  * Handle /start command.
  */
 function handleStart(bot) {
-  bot.onText(/\/start/, (msg) => {
+  bot.onText(/\/start/, async (msg) => {
     const chatId = msg.chat.id;
-    const session = getSession(chatId);
+    const session = await getSession(chatId);
 
     // If already logged in, show appropriate menu
     if (session.user_id || isAdmin(chatId)) {
@@ -54,13 +54,13 @@ function handleStart(bot) {
  * Handle language selection callback.
  */
 function handleLangSelection(bot) {
-  bot.on('callback_query', (query) => {
+  bot.on('callback_query', async (query) => {
     if (!query.data.startsWith('lang:')) return;
 
     const chatId = query.message.chat.id;
     const lang = query.data.split(':')[1]; // uz_latin or uz_cyrillic
 
-    sessionQueries.setLang.run(chatId, lang, lang);
+    await sessionQueries.setLang.run(chatId, lang, lang);
     bot.answerCallbackQuery(query.id).catch(() => {});
 
     // Delete the language selection message
@@ -83,11 +83,11 @@ function handleLangSelection(bot) {
  * Handle registration button click → show clinic info.
  */
 function handleRegistration(bot) {
-  bot.on('callback_query', (query) => {
+  bot.on('callback_query', async (query) => {
     if (query.data !== 'register') return;
 
     const chatId = query.message.chat.id;
-    const session = getSession(chatId);
+    const session = await getSession(chatId);
     const lang = session.lang || 'uz_latin';
 
     bot.answerCallbackQuery(query.id).catch(() => {});
@@ -101,7 +101,7 @@ function handleRegistration(bot) {
     bot.sendMessage(chatId, infoText, { parse_mode: 'MarkdownV2' });
 
     // Set state to waiting for password
-    sessionQueries.setState.run('awaiting_password', null, chatId);
+    await sessionQueries.setState.run('awaiting_password', null, chatId);
 
     setTimeout(() => {
       bot.sendMessage(chatId, t(lang, 'enter_password'));

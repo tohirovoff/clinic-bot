@@ -35,18 +35,18 @@ function getMenuKeyboard(chatId, lang) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function handleAdminCallbacks(bot) {
-  bot.on('callback_query', (query) => {
+  bot.on('callback_query', async (query) => {
     const chatId = query.message.chat.id;
     if (!isAdmin(chatId)) return;
 
     const data = query.data;
-    const session = getSession(chatId);
+    const session = await getSession(chatId);
     const lang = session.lang || 'uz_latin';
 
     // ── Cancel ────────────────────────────────────────────────────
     if (data === 'cancel') {
       bot.answerCallbackQuery(query.id).catch(() => {});
-      sessionQueries.clearState.run(chatId);
+      await sessionQueries.clearState.run(chatId);
       bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
       return bot.sendMessage(chatId, t(lang, 'cancelled'), getMenuKeyboard(chatId, lang));
     }
@@ -57,7 +57,7 @@ function handleAdminCallbacks(bot) {
       if (!isAdmin(chatId)) {
         return bot.sendMessage(chatId, '⛔ Sizda bu amalni bajarishga ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
       }
-      sessionQueries.setState.run('admin_add_user_name', null, chatId);
+      await sessionQueries.setState.run('admin_add_user_name', null, chatId);
       return bot.editMessageText(t(lang, 'enter_user_fullname'), {
         chat_id: chatId,
         message_id: query.message.message_id,
@@ -70,7 +70,7 @@ function handleAdminCallbacks(bot) {
     // ── Add Patient ───────────────────────────────────────────────
     if (data === 'admin:add_patient') {
       bot.answerCallbackQuery(query.id).catch(() => {});
-      const users = userQueries.getAll.all();
+      const users = await userQueries.getAll.all();
       if (users.length === 0) {
         return bot.editMessageText(t(lang, 'user_list_empty'), {
           chat_id: chatId,
@@ -103,7 +103,7 @@ function handleAdminCallbacks(bot) {
     if (data.startsWith('select_user:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
-      sessionQueries.setState.run(
+      await sessionQueries.setState.run(
         'admin_add_patient_name',
         JSON.stringify({ user_id: userId }),
         chatId
@@ -128,7 +128,7 @@ function handleAdminCallbacks(bot) {
       stateData.department = department;
 
       try {
-        patientQueries.create.run({
+        await patientQueries.create.run({
           user_id: stateData.user_id,
           full_name: stateData.full_name,
           region: stateData.region,
@@ -137,13 +137,13 @@ function handleAdminCallbacks(bot) {
         });
       } catch (err) {
         console.error('Error creating patient:', err);
-        sessionQueries.clearState.run(chatId);
+        await sessionQueries.clearState.run(chatId);
         bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
         return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
       }
 
-      const user = userQueries.findById.get(stateData.user_id);
-      sessionQueries.clearState.run(chatId);
+      const user = await userQueries.findById.get(stateData.user_id);
+      await sessionQueries.clearState.run(chatId);
 
       let deptText = department;
       if (department === 'Rengen') deptText = t(lang, 'dept_rentgen');
@@ -191,7 +191,7 @@ function handleAdminCallbacks(bot) {
     if (data.startsWith('add_payment:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
-      sessionQueries.setState.run(
+      await sessionQueries.setState.run(
         'admin_add_payment_amount',
         JSON.stringify({ user_id: userId }),
         chatId
@@ -212,7 +212,7 @@ function handleAdminCallbacks(bot) {
         return bot.sendMessage(chatId, '⛔ Sizda bu amalni bajarishga ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
       }
       const userId = parseInt(data.split(':')[1], 10);
-      const user = userQueries.findById.get(userId);
+      const user = await userQueries.findById.get(userId);
       if (!user) return;
 
       const escapedName = escapeMarkdown(user.full_name);
@@ -236,12 +236,12 @@ function handleAdminCallbacks(bot) {
         return bot.sendMessage(chatId, '⛔ Sizda bu amalni bajarishga ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
       }
       const userId = parseInt(data.split(':')[1], 10);
-      const user = userQueries.findById.get(userId);
+      const user = await userQueries.findById.get(userId);
       if (!user) return;
 
       const escapedName = escapeMarkdown(user.full_name);
-      sessionQueries.deleteByUserId.run(userId);
-      userQueries.deleteById.run(userId);
+      await sessionQueries.deleteByUserId.run(userId);
+      await userQueries.deleteById.run(userId);
 
       return bot.editMessageText(t(lang, 'user_deleted', { name: escapedName }), {
         chat_id: chatId,
@@ -295,13 +295,13 @@ function handleAdminCallbacks(bot) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function handleAdminTextInput(bot) {
-  bot.on('message', (msg) => {
+  bot.on('message', async (msg) => {
     if (!msg.text || msg.text.startsWith('/')) return;
 
     const chatId = msg.chat.id;
     if (!isAdmin(chatId)) return;
 
-    const session = getSession(chatId);
+    const session = await getSession(chatId);
     if (!session.state || !session.state.startsWith('admin_')) return;
 
     const lang = session.lang || 'uz_latin';
@@ -312,11 +312,11 @@ function handleAdminTextInput(bot) {
       // ── Add User Flow (SUPER ADMIN ONLY) ────────────────────
       case 'admin_add_user_name': {
         if (!isAdmin(chatId)) {
-          sessionQueries.clearState.run(chatId);
+          await sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
         }
         stateData.full_name = input;
-        sessionQueries.setState.run(
+        await sessionQueries.setState.run(
           'admin_add_user_region',
           JSON.stringify(stateData),
           chatId
@@ -327,11 +327,11 @@ function handleAdminTextInput(bot) {
 
       case 'admin_add_user_region': {
         if (!isAdmin(chatId)) {
-          sessionQueries.clearState.run(chatId);
+          await sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
         }
         stateData.region = input;
-        sessionQueries.setState.run(
+        await sessionQueries.setState.run(
           'admin_add_user_year',
           JSON.stringify(stateData),
           chatId
@@ -342,7 +342,7 @@ function handleAdminTextInput(bot) {
 
       case 'admin_add_user_year': {
         if (!isAdmin(chatId)) {
-          sessionQueries.clearState.run(chatId);
+          await sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
         }
         const year = parseInt(input, 10);
@@ -350,9 +350,9 @@ function handleAdminTextInput(bot) {
           return bot.sendMessage(chatId, t(lang, 'invalid_year'), cancelKeyboard(lang));
         }
 
-        const password = generatePassword();
+        const password = await generatePassword();
         try {
-          userQueries.create.run({
+          await userQueries.create.run({
             full_name: stateData.full_name,
             region: stateData.region,
             birth_year: year,
@@ -360,11 +360,11 @@ function handleAdminTextInput(bot) {
           });
         } catch (err) {
           console.error('Error creating user:', err);
-          sessionQueries.clearState.run(chatId);
+          await sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', adminMenuKeyboard(lang));
         }
 
-        sessionQueries.clearState.run(chatId);
+        await sessionQueries.clearState.run(chatId);
 
         const successText = t(lang, 'user_added_success', {
           name: escapeMarkdown(stateData.full_name),
@@ -383,7 +383,7 @@ function handleAdminTextInput(bot) {
       // ── Add Patient Flow (ALL ADMINS) ─────────────────────────
       case 'admin_add_patient_name': {
         stateData.full_name = input;
-        sessionQueries.setState.run(
+        await sessionQueries.setState.run(
           'admin_add_patient_region',
           JSON.stringify(stateData),
           chatId
@@ -394,7 +394,7 @@ function handleAdminTextInput(bot) {
 
       case 'admin_add_patient_region': {
         stateData.region = input;
-        sessionQueries.setState.run(
+        await sessionQueries.setState.run(
           'admin_add_patient_year',
           JSON.stringify(stateData),
           chatId
@@ -410,7 +410,7 @@ function handleAdminTextInput(bot) {
         }
 
         stateData.year = year;
-        sessionQueries.setState.run(
+        await sessionQueries.setState.run(
           'admin_add_patient_department',
           JSON.stringify(stateData),
           chatId
@@ -431,19 +431,19 @@ function handleAdminTextInput(bot) {
         const userId = stateData.user_id;
 
         try {
-          paymentQueries.create.run({
+          await paymentQueries.create.run({
             user_id: userId,
             amount: amount,
             admin_id: chatId,
           });
         } catch (err) {
           console.error('Error creating payment:', err);
-          sessionQueries.clearState.run(chatId);
+          await sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
         }
 
-        const user = userQueries.findById.get(userId);
-        sessionQueries.clearState.run(chatId);
+        const user = await userQueries.findById.get(userId);
+        await sessionQueries.clearState.run(chatId);
 
         const successText = t(lang, 'payment_added_success', {
           name: escapeMarkdown(user ? user.full_name : '—'),
@@ -467,8 +467,8 @@ function handleAdminTextInput(bot) {
 //  Helper: Show user list (ALL ADMINS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function showUserList(bot, chatId, messageId, lang) {
-  const users = userQueries.getAll.all();
+async function showUserList(bot, chatId, messageId, lang) {
+  const users = await userQueries.getAll.all();
 
   if (users.length === 0) {
     return bot.editMessageText(t(lang, 'user_list_empty'), {
@@ -509,8 +509,8 @@ function showUserList(bot, chatId, messageId, lang) {
 //  Helper: Show user detail (ALL ADMINS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function showUserDetail(bot, chatId, messageId, lang, userId, isSuper) {
-  const user = userQueries.findById.get(userId);
+async function showUserDetail(bot, chatId, messageId, lang, userId, isSuper) {
+  const user = await userQueries.findById.get(userId);
   if (!user) {
     return bot.editMessageText(t(lang, 'user_not_found'), {
       chat_id: chatId,
@@ -544,8 +544,8 @@ function showUserDetail(bot, chatId, messageId, lang, userId, isSuper) {
 //  Helper: Show user stats (ALL ADMINS viewing a specific user)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isSuper) {
-  const user = userQueries.findById.get(userId);
+async function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isSuper) {
+  const user = await userQueries.findById.get(userId);
   if (!user) return;
 
   const { start, end } = getDateRange(period);
@@ -554,15 +554,15 @@ function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isS
   let patients, payments, paymentTotal;
   if (!isSuperAdmin(chatId)) {
     // Sub-admin: filter patients by department and payments by their own ID
-    patients = dept ? patientQueries.getByUserDateRangeAndDept.all(userId, start, end, dept) : [];
-    payments = paymentQueries.getByUserDateRangeAndAdmin.all(userId, start, end, chatId);
-    const paymentSumRow = paymentQueries.sumByUserDateRangeAndAdmin.get(userId, start, end, chatId);
+    patients = dept ? await patientQueries.getByUserDateRangeAndDept.all(userId, start, end, dept) : [];
+    payments = await paymentQueries.getByUserDateRangeAndAdmin.all(userId, start, end, chatId);
+    const paymentSumRow = await paymentQueries.sumByUserDateRangeAndAdmin.get(userId, start, end, chatId);
     paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
   } else {
     // Super-admin: see everything
-    patients = patientQueries.getByUserAndDateRange.all(userId, start, end);
-    payments = paymentQueries.getByUserAndDateRange.all(userId, start, end);
-    const paymentSumRow = paymentQueries.sumByUserAndDateRange.get(userId, start, end);
+    patients = await patientQueries.getByUserAndDateRange.all(userId, start, end);
+    payments = await paymentQueries.getByUserAndDateRange.all(userId, start, end);
+    const paymentSumRow = await paymentQueries.sumByUserAndDateRange.get(userId, start, end);
     paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
   }
   const count = patients.length;
@@ -620,28 +620,28 @@ function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isS
 //  Helper: Show overall stats (ALL ADMINS)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-function showOverallStats(bot, chatId, messageId, lang, period) {
+async function showOverallStats(bot, chatId, messageId, lang, period) {
   const { start, end } = getDateRange(period);
   const dept = config.SUB_ADMIN_DEPARTMENTS[chatId];
   
   let totalRow, perUser, totalPayment, paymentPerUser;
   if (!isSuperAdmin(chatId)) {
     // Sub-admin: restricted view
-    totalRow = dept ? patientQueries.countByDateRangeAndDept.get(start, end, dept) : { count: 0 };
-    perUser = dept ? patientQueries.countPerUserDateRangeAndDept.all(start, end, dept) : [];
+    totalRow = dept ? await patientQueries.countByDateRangeAndDept.get(start, end, dept) : { count: 0 };
+    perUser = dept ? await patientQueries.countPerUserDateRangeAndDept.all(start, end, dept) : [];
     
     // Payments made by THIS sub-admin
-    const paymentSumRow = paymentQueries.sumByDateRangeAndAdmin.get(start, end, chatId);
+    const paymentSumRow = await paymentQueries.sumByDateRangeAndAdmin.get(start, end, chatId);
     totalPayment = paymentSumRow ? (paymentSumRow.total || 0) : 0;
-    paymentPerUser = paymentQueries.sumPerUserDateRangeAndAdmin.all(start, end, chatId);
+    paymentPerUser = await paymentQueries.sumPerUserDateRangeAndAdmin.all(start, end, chatId);
   } else {
     // Super-admin: see everything
-    totalRow = patientQueries.countByDateRange.get(start, end);
-    perUser = patientQueries.countPerUserByDateRange.all(start, end);
+    totalRow = await patientQueries.countByDateRange.get(start, end);
+    perUser = await patientQueries.countPerUserByDateRange.all(start, end);
     
-    const paymentSumRow = paymentQueries.sumByDateRange.get(start, end);
+    const paymentSumRow = await paymentQueries.sumByDateRange.get(start, end);
     totalPayment = paymentSumRow ? (paymentSumRow.total || 0) : 0;
-    paymentPerUser = paymentQueries.sumPerUserByDateRange.all(start, end);
+    paymentPerUser = await paymentQueries.sumPerUserByDateRange.all(start, end);
   }
 
   const periodKey = `period_${period}`;
@@ -695,12 +695,12 @@ function showOverallStats(bot, chatId, messageId, lang, period) {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 function handleAdminBackToMenu(bot) {
-  bot.on('callback_query', (query) => {
+  bot.on('callback_query', async (query) => {
     if (query.data !== 'admin_back_to_menu') return;
     const chatId = query.message.chat.id;
     if (!isAdmin(chatId)) return;
 
-    const session = getSession(chatId);
+    const session = await getSession(chatId);
     const lang = session.lang || 'uz_latin';
     bot.answerCallbackQuery(query.id).catch(() => {});
 

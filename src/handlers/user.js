@@ -1,5 +1,5 @@
 const { t } = require('../locales');
-const { patientQueries, sessionQueries } = require('../database/queries');
+const { patientQueries, sessionQueries, paymentQueries, userQueries } = require('../database/queries');
 const { getSession, escapeMarkdown } = require('../utils/helpers');
 const { getDateRange } = require('../utils/dates');
 const { userMenuKeyboard, statsKeyboard } = require('../keyboards');
@@ -8,11 +8,11 @@ const { userMenuKeyboard, statsKeyboard } = require('../keyboards');
  * Handle user statistics menu and period selection.
  */
 function handleUserStats(bot) {
-  bot.on('callback_query', (query) => {
+  bot.on('callback_query', async (query) => {
     if (!query.data.startsWith('user:') && !query.data.startsWith('user_stats:')) return;
 
     const chatId = query.message.chat.id;
-    const session = getSession(chatId);
+    const session = await getSession(chatId);
     const lang = session.lang || 'uz_latin';
 
     if (!session.user_id) {
@@ -49,16 +49,15 @@ function handleUserStats(bot) {
     if (!['daily', 'weekly', 'monthly', 'yearly'].includes(period)) return;
 
     const { start, end } = getDateRange(period);
-    const patients = patientQueries.getByUserAndDateRange.all(session.user_id, start, end);
+    const patients = await patientQueries.getByUserAndDateRange.all(session.user_id, start, end);
     const count = patients.length;
 
-    const paymentQueries = require('../database/queries').paymentQueries;
-    const payments = paymentQueries.getByUserAndDateRange.all(session.user_id, start, end);
-    const paymentSumRow = paymentQueries.sumByUserAndDateRange.get(session.user_id, start, end);
+    const payments = await paymentQueries.getByUserAndDateRange.all(session.user_id, start, end);
+    const paymentSumRow = await paymentQueries.sumByUserAndDateRange.get(session.user_id, start, end);
     const paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
 
     const periodKey = `period_${period}`;
-    const user = require('../database/queries').userQueries.findById.get(session.user_id);
+    const user = await userQueries.findById.get(session.user_id);
     const userName = user ? escapeMarkdown(user.full_name) : '—';
 
     let text = t(lang, 'stats_title', { name: userName, period: t(lang, periodKey) }) + '\n\n';

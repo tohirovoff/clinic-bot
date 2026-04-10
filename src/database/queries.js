@@ -1,40 +1,44 @@
-const db = require('./connection');
+const { prepare } = require('./connection');
 
 // ─── User Queries ────────────────────────────────────────────────────
 
 const userQueries = {
-  create: db.prepare(`
+  create: prepare(`
     INSERT INTO users (full_name, region, birth_year, password)
     VALUES (@full_name, @region, @birth_year, @password)
   `),
 
-  findByPassword: db.prepare(`
-    SELECT * FROM users WHERE password = ?
+  findByPassword: prepare(`
+    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM users WHERE password = ?
   `),
 
-  findById: db.prepare(`
-    SELECT * FROM users WHERE id = ?
+  findById: prepare(`
+    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM users WHERE id = ?
   `),
 
-  findByTelegramId: db.prepare(`
-    SELECT u.* FROM users u
+  findByTelegramId: prepare(`
+    SELECT u.*, TO_CHAR(u.created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM users u
     JOIN sessions s ON s.user_id = u.id
     WHERE s.telegram_id = ?
   `),
 
-  getAll: db.prepare(`
-    SELECT * FROM users ORDER BY full_name ASC
+  getAll: prepare(`
+    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM users ORDER BY full_name ASC
   `),
 
-  deleteById: db.prepare(`
+  deleteById: prepare(`
     DELETE FROM users WHERE id = ?
   `),
 
-  passwordExists: db.prepare(`
+  passwordExists: prepare(`
     SELECT 1 FROM users WHERE password = ?
   `),
 
-  updateTelegramId: db.prepare(`
+  updateTelegramId: prepare(`
     UPDATE users SET telegram_id = ? WHERE id = ?
   `),
 };
@@ -42,14 +46,15 @@ const userQueries = {
 // ─── Patient Queries ─────────────────────────────────────────────────
 
 const patientQueries = {
-  create: db.prepare(`
+  create: prepare(`
     INSERT INTO patients (user_id, full_name, region, birth_year, department)
     VALUES (@user_id, @full_name, @region, @birth_year, @department)
   `),
 
   /** Patients by user within a date range */
-  getByUserAndDateRange: db.prepare(`
-    SELECT * FROM patients
+  getByUserAndDateRange: prepare(`
+    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM patients
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
@@ -57,8 +62,9 @@ const patientQueries = {
   `),
 
   /** Patients by user, date range and department */
-  getByUserDateRangeAndDept: db.prepare(`
-    SELECT * FROM patients
+  getByUserDateRangeAndDept: prepare(`
+    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM patients
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
@@ -67,16 +73,16 @@ const patientQueries = {
   `),
 
   /** Count by user within a date range */
-  countByUserAndDateRange: db.prepare(`
-    SELECT COUNT(*) as count FROM patients
+  countByUserAndDateRange: prepare(`
+    SELECT COUNT(*)::int as count FROM patients
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
   `),
 
   /** Count by user, date range and department */
-  countByUserDateRangeAndDept: db.prepare(`
-    SELECT COUNT(*) as count FROM patients
+  countByUserDateRangeAndDept: prepare(`
+    SELECT COUNT(*)::int as count FROM patients
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
@@ -84,8 +90,10 @@ const patientQueries = {
   `),
 
   /** All patients within a date range (for overall stats) */
-  getAllByDateRange: db.prepare(`
-    SELECT p.*, u.full_name as user_name FROM patients p
+  getAllByDateRange: prepare(`
+    SELECT p.*, u.full_name as user_name,
+           TO_CHAR(p.created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM patients p
     JOIN users u ON u.id = p.user_id
     WHERE p.created_at >= ?
       AND p.created_at < ?
@@ -93,38 +101,38 @@ const patientQueries = {
   `),
 
   /** Count per user within a date range (for overall stats) */
-  countPerUserByDateRange: db.prepare(`
-    SELECT u.id, u.full_name, COUNT(p.id) as count
+  countPerUserByDateRange: prepare(`
+    SELECT u.id, u.full_name, COUNT(p.id)::int as count
     FROM users u
     LEFT JOIN patients p ON p.user_id = u.id
       AND p.created_at >= ?
       AND p.created_at < ?
-    GROUP BY u.id
+    GROUP BY u.id, u.full_name
     ORDER BY count DESC
   `),
 
   /** Count per user within a date range and department */
-  countPerUserDateRangeAndDept: db.prepare(`
-    SELECT u.id, u.full_name, COUNT(p.id) as count
+  countPerUserDateRangeAndDept: prepare(`
+    SELECT u.id, u.full_name, COUNT(p.id)::int as count
     FROM users u
     LEFT JOIN patients p ON p.user_id = u.id
       AND p.created_at >= ?
       AND p.created_at < ?
       AND p.department = ?
-    GROUP BY u.id
+    GROUP BY u.id, u.full_name
     ORDER BY count DESC
   `),
 
   /** Total count in a date range */
-  countByDateRange: db.prepare(`
-    SELECT COUNT(*) as count FROM patients
+  countByDateRange: prepare(`
+    SELECT COUNT(*)::int as count FROM patients
     WHERE created_at >= ?
       AND created_at < ?
   `),
 
   /** Total count in a date range and department */
-  countByDateRangeAndDept: db.prepare(`
-    SELECT COUNT(*) as count FROM patients
+  countByDateRangeAndDept: prepare(`
+    SELECT COUNT(*)::int as count FROM patients
     WHERE created_at >= ?
       AND created_at < ?
       AND department = ?
@@ -134,11 +142,11 @@ const patientQueries = {
 // ─── Session Queries ─────────────────────────────────────────────────
 
 const sessionQueries = {
-  get: db.prepare(`
+  get: prepare(`
     SELECT * FROM sessions WHERE telegram_id = ?
   `),
 
-  upsert: db.prepare(`
+  upsert: prepare(`
     INSERT INTO sessions (telegram_id, user_id, lang, state, state_data)
     VALUES (@telegram_id, @user_id, @lang, @state, @state_data)
     ON CONFLICT(telegram_id)
@@ -149,26 +157,26 @@ const sessionQueries = {
       state_data = @state_data
   `),
 
-  setLang: db.prepare(`
+  setLang: prepare(`
     INSERT INTO sessions (telegram_id, lang)
     VALUES (?, ?)
     ON CONFLICT(telegram_id)
     DO UPDATE SET lang = ?
   `),
 
-  setState: db.prepare(`
+  setState: prepare(`
     UPDATE sessions SET state = ?, state_data = ? WHERE telegram_id = ?
   `),
 
-  clearState: db.prepare(`
+  clearState: prepare(`
     UPDATE sessions SET state = NULL, state_data = NULL WHERE telegram_id = ?
   `),
 
-  setUserId: db.prepare(`
+  setUserId: prepare(`
     UPDATE sessions SET user_id = ? WHERE telegram_id = ?
   `),
 
-  deleteByUserId: db.prepare(`
+  deleteByUserId: prepare(`
     DELETE FROM sessions WHERE user_id = ?
   `),
 };
@@ -176,14 +184,16 @@ const sessionQueries = {
 // ─── Payment Queries ─────────────────────────────────────────────────
 
 const paymentQueries = {
-  create: db.prepare(`
+  create: prepare(`
     INSERT INTO payments (user_id, amount, admin_id)
     VALUES (@user_id, @amount, @admin_id)
   `),
 
   /** Get all payments by user within a date range */
-  getByUserAndDateRange: db.prepare(`
-    SELECT id, user_id, amount, admin_id, created_at FROM payments
+  getByUserAndDateRange: prepare(`
+    SELECT id, user_id, amount, admin_id,
+           TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM payments
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
@@ -191,8 +201,10 @@ const paymentQueries = {
   `),
 
   /** Get all payments by user, date range and admin */
-  getByUserDateRangeAndAdmin: db.prepare(`
-    SELECT id, user_id, amount, admin_id, created_at FROM payments
+  getByUserDateRangeAndAdmin: prepare(`
+    SELECT id, user_id, amount, admin_id,
+           TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    FROM payments
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
@@ -201,16 +213,16 @@ const paymentQueries = {
   `),
 
   /** Sum amount per user within a date range */
-  sumByUserAndDateRange: db.prepare(`
-    SELECT SUM(amount) as total FROM payments
+  sumByUserAndDateRange: prepare(`
+    SELECT COALESCE(SUM(amount), 0)::int as total FROM payments
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
   `),
 
   /** Sum amount per user, date range and admin */
-  sumByUserDateRangeAndAdmin: db.prepare(`
-    SELECT SUM(amount) as total FROM payments
+  sumByUserDateRangeAndAdmin: prepare(`
+    SELECT COALESCE(SUM(amount), 0)::int as total FROM payments
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
@@ -218,38 +230,38 @@ const paymentQueries = {
   `),
 
   /** Sum per user within a date range (for overall stats) */
-  sumPerUserByDateRange: db.prepare(`
-    SELECT u.id, u.full_name, SUM(py.amount) as total
+  sumPerUserByDateRange: prepare(`
+    SELECT u.id, u.full_name, COALESCE(SUM(py.amount), 0)::int as total
     FROM users u
     LEFT JOIN payments py ON py.user_id = u.id
       AND py.created_at >= ?
       AND py.created_at < ?
-    GROUP BY u.id
+    GROUP BY u.id, u.full_name
     ORDER BY total DESC
   `),
 
   /** Sum per user within a date range and admin */
-  sumPerUserDateRangeAndAdmin: db.prepare(`
-    SELECT u.id, u.full_name, SUM(py.amount) as total
+  sumPerUserDateRangeAndAdmin: prepare(`
+    SELECT u.id, u.full_name, COALESCE(SUM(py.amount), 0)::int as total
     FROM users u
     LEFT JOIN payments py ON py.user_id = u.id
       AND py.created_at >= ?
       AND py.created_at < ?
       AND py.admin_id = ?
-    GROUP BY u.id
+    GROUP BY u.id, u.full_name
     ORDER BY total DESC
   `),
 
   /** Total sum in a date range */
-  sumByDateRange: db.prepare(`
-    SELECT SUM(amount) as total FROM payments
+  sumByDateRange: prepare(`
+    SELECT COALESCE(SUM(amount), 0)::int as total FROM payments
     WHERE created_at >= ?
       AND created_at < ?
   `),
 
   /** Total sum in a date range and admin */
-  sumByDateRangeAndAdmin: db.prepare(`
-    SELECT SUM(amount) as total FROM payments
+  sumByDateRangeAndAdmin: prepare(`
+    SELECT COALESCE(SUM(amount), 0)::int as total FROM payments
     WHERE created_at >= ?
       AND created_at < ?
       AND admin_id = ?

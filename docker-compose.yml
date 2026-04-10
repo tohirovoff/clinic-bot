@@ -7,7 +7,27 @@ services:
     env_file: .env
     environment:
       - TZ=Asia/Tashkent
-    volumes:
-      - ./data:/app/data
+      - DATABASE_URL=postgresql://clinic_user:clinic_pass@postgres:5432/clinic_db
+    depends_on:
+      postgres:
+        condition: service_healthy
 
-# Named volume olib tashlandi, endi faqat lokal papka ishlatiladi
+  postgres:
+    image: postgres:16-alpine
+    container_name: clinic-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: clinic_db
+      POSTGRES_USER: clinic_user
+      POSTGRES_PASSWORD: clinic_pass
+      TZ: Asia/Tashkent
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinic_user -d clinic_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

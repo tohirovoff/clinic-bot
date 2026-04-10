@@ -2,15 +2,27 @@ const cron = require('node-cron');
 const config = require('../config');
 const { userQueries, patientQueries } = require('../database/queries');
 const { getDateRange, getTashkentNow } = require('../utils/dates');
-const db = require('../database/connection');
+const { pool, prepare } = require('../database/connection');
 
-// ─── Get all active user telegram IDs ────────────────────────────────
-const getActiveUserTelegramIds = db.prepare(`
+// ─── Prepared queries for reminder ───────────────────────────────────
+const getActiveUserTelegramIds = prepare(`
   SELECT s.telegram_id, s.lang, u.full_name
   FROM sessions s
   JOIN users u ON u.id = s.user_id
   WHERE s.user_id IS NOT NULL
 `);
+
+const getSessionLang = prepare(
+  'SELECT lang FROM sessions WHERE telegram_id = ?'
+);
+
+const getSessionUserId = prepare(
+  'SELECT user_id FROM sessions WHERE telegram_id = ?'
+);
+
+const clearAllSessionStates = prepare(
+  'UPDATE sessions SET state = NULL, state_data = NULL'
+);
 
 // ─── Reminder messages ───────────────────────────────────────────────
 const reminderMessages = {
@@ -84,11 +96,11 @@ async function sendUserReminder(bot, telegramId, lang, userId, type) {
       yesterday.setDate(yesterday.getDate() - 1);
       const yStart = formatDateLocal(yesterday);
       const yEnd = start; // today's start = yesterday's end
-      const row = patientQueries.countByUserAndDateRange.get(userId, yStart, yEnd);
+      const row = await patientQueries.countByUserAndDateRange.get(userId, yStart, yEnd);
       count = row ? row.count : 0;
     } else {
       // Evening: show today's results
-      const row = patientQueries.countByUserAndDateRange.get(userId, start, end);
+      const row = await patientQueries.countByUserAndDateRange.get(userId, start, end);
       count = row ? row.count : 0;
     }
 
@@ -104,13 +116,14 @@ async function sendUserReminder(bot, telegramId, lang, userId, type) {
  */
 async function sendAdminReminder(bot, type, targetId) {
   try {
-    const adminSession = db.prepare('SELECT lang FROM sessions WHERE telegram_id = ?').get(targetId);
+    const adminSession = await getSessionLang.get(targetId);
     const lang = adminSession ? adminSession.lang : 'uz_latin';
     const locale = adminReminderMessages[lang] || adminReminderMessages.uz_latin;
     let message = locale[type];
 
     const { start, end } = getDateRange('daily');
-    const activeUsers = userQueries.getAll.all().length;
+    const allUsers = await userQueries.getAll.all();
+    const activeUsers = allUsers.length;
     let count = 0;
 
     if (type === 'morning') {
@@ -118,10 +131,10 @@ async function sendAdminReminder(bot, type, targetId) {
       yesterday.setDate(yesterday.getDate() - 1);
       const yStart = formatDateLocal(yesterday);
       const yEnd = start;
-      const row = patientQueries.countByDateRange.get(yStart, yEnd);
+      const row = await patientQueries.countByDateRange.get(yStart, yEnd);
       count = row ? row.count : 0;
     } else {
-      const row = patientQueries.countByDateRange.get(start, end);
+      const row = await patientQueries.countByDateRange.get(start, end);
       count = row ? row.count : 0;
     }
 
@@ -157,13 +170,13 @@ async function sendReminders(bot, type) {
 
   // Send to all logged-in users (skip all admins — they get separate messages)
   const allAdminIds = config.ALL_ADMINS;
-  const activeUsers = getActiveUserTelegramIds.all();
+  const activeUsers = await getActiveUserTelegramIds.all();
   for (const user of activeUsers) {
     if (allAdminIds.includes(user.telegram_id)) continue;
 
-    const userId = db.prepare('SELECT user_id FROM sessions WHERE telegram_id = ?').get(user.telegram_id);
-    if (userId && userId.user_id) {
-      await sendUserReminder(bot, user.telegram_id, user.lang || 'uz_latin', userId.user_id, type);
+    const userIdRow = await getSessionUserId.get(user.telegram_id);
+    if (userIdRow && userIdRow.user_id) {
+      await sendUserReminder(bot, user.telegram_id, user.lang || 'uz_latin', userIdRow.user_id, type);
     }
   }
 
@@ -177,7 +190,7 @@ async function sendReminders(bot, type) {
 
 /**
  * Start the reminder scheduler.
- * Default: Morning at 09:00, Evening at 18:00 (Tashkent time).
+ * Default: Morning at 09:00, Noon at 12:00, Afternoon at 14:00 (Tashkent time).
  */
 function startReminderScheduler(bot) {
   const morningTime = config.REMINDER_MORNING || '0 9 * * *';
@@ -201,9 +214,9 @@ function startReminderScheduler(bot) {
   }, { timezone: 'Asia/Tashkent' });
 
   // Midnight cleanup
-  cron.schedule(cleanupTime, () => {
+  cron.schedule(cleanupTime, async () => {
     console.log('🧹 Yarim kechasi sessiyalarni tozalash...');
-    db.prepare('UPDATE sessions SET state = NULL, state_data = NULL').run();
+    await clearAllSessionStates.run();
   }, { timezone: 'Asia/Tashkent' });
 
   console.log(`⏰ Eslatmalar rejalashtirildi: 09:00, 12:00, 14:00 (Toshkent vaqti)`);

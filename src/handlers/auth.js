@@ -8,11 +8,11 @@ const { userMenuKeyboard } = require('../keyboards');
  * Listens for text messages when user is in 'awaiting_password' state.
  */
 function handleAuth(bot) {
-  bot.on('message', (msg) => {
+  bot.on('message', async (msg) => {
     if (!msg.text || msg.text.startsWith('/')) return;
 
     const chatId = msg.chat.id;
-    const session = getSession(chatId);
+    const session = await getSession(chatId);
 
     if (session.state !== 'awaiting_password') return;
 
@@ -25,7 +25,7 @@ function handleAuth(bot) {
     }
 
     // Look up user by password
-    const user = userQueries.findByPassword.get(password);
+    const user = await userQueries.findByPassword.get(password);
 
     if (!user) {
       return bot.sendMessage(chatId, t(lang, 'wrong_password'));
@@ -38,9 +38,9 @@ function handleAuth(bot) {
     }
 
     // Link the Telegram account to this user
-    userQueries.updateTelegramId.run(chatId, user.id);
-    sessionQueries.setUserId.run(user.id, chatId);
-    sessionQueries.clearState.run(chatId);
+    await userQueries.updateTelegramId.run(chatId, user.id);
+    await sessionQueries.setUserId.run(user.id, chatId);
+    await sessionQueries.clearState.run(chatId);
 
     // Welcome message
     const escapedName = user.full_name.replace(/([_*\[\]()~`>#+\-=|{}.!\\])/g, '\\$1');

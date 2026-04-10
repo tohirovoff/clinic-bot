@@ -1,7 +1,13 @@
-const db = require('./connection');
+const { initSchema, closePool } = require('./connection');
 
-console.log('✅ Database initialized successfully at data/clinic.db');
-console.log('Tables created: users, patients, sessions');
-
-db.close();
-process.exit(0);
+initSchema()
+  .then(() => {
+    console.log('✅ Database initialized successfully (PostgreSQL)');
+    console.log('Tables created: users, patients, sessions, payments');
+    return closePool();
+  })
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error('❌ Database initialization failed:', err);
+    process.exit(1);
+  });

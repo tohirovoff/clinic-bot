@@ -3,7 +3,7 @@
  */
 const { userQueries } = require('../database/queries');
 
-function generatePassword() {
+async function generatePassword() {
   let password;
   let attempts = 0;
   const MAX_ATTEMPTS = 100;
@@ -14,7 +14,7 @@ function generatePassword() {
     if (attempts > MAX_ATTEMPTS) {
       throw new Error('Could not generate unique password after max attempts');
     }
-  } while (userQueries.passwordExists.get(password));
+  } while (await userQueries.passwordExists.get(password));
 
   return password;
 }
