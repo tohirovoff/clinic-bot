@@ -2,6 +2,8 @@ const TelegramBot = require("node-telegram-bot-api");
 const config = require("./config");
 const { registerHandlers } = require("./handlers");
 const { startReminderScheduler } = require("./utils/reminder");
+const db = require("./database/connection");
+const path = require("path");
 
 // ─── Initialize Bot ──────────────────────────────────────────────────
 const bot = new TelegramBot(config.BOT_TOKEN, {
@@ -14,8 +16,11 @@ const bot = new TelegramBot(config.BOT_TOKEN, {
   },
 });
 
+const DB_PATH = path.join(__dirname, '..', 'data', 'clinic.db');
+
 console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
 console.log("  🏥 Clinic Referral Bot ishga tushdi!");
+console.log(`  📂 Database: ${DB_PATH}`);
 console.log(`  👤 Admin ID: ${config.ADMIN_ID}`);
 console.log(`  🏥 Klinika: ${config.CLINIC_NAME}`);
 console.log(`  📞 Telefon: ${config.CLINIC_PHONE}`);
@@ -44,11 +49,13 @@ process.on("unhandledRejection", (err) => {
 process.on("SIGINT", () => {
   console.log("\n🔴 Bot to'xtatilmoqda...");
   bot.stopPolling();
+  db.close();
   process.exit(0);
 });
 
 process.on("SIGTERM", () => {
   console.log("\n🔴 Bot to'xtatilmoqda...");
   bot.stopPolling();
+  db.close();
   process.exit(0);
 });

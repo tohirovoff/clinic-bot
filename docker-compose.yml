@@ -1,9 +1,12 @@
 services:
   clinic-bot:
+    build: .
     image: rayyandev/clinic-bot:latest
     container_name: clinic-bot
     restart: unless-stopped
     env_file: .env
+    environment:
+      - TZ=Asia/Tashkent
     volumes:
       - clinic-bot-data:/app/data
 
