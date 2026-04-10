@@ -23,7 +23,7 @@ db.exec(`
     birth_year    INTEGER NOT NULL,
     password      TEXT    NOT NULL UNIQUE,
     telegram_id   INTEGER UNIQUE,
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now', '+5 hours'))
   );
 
   CREATE TABLE IF NOT EXISTS patients (
@@ -33,7 +33,7 @@ db.exec(`
     region        TEXT    NOT NULL,
     birth_year    INTEGER NOT NULL,
     department    TEXT    NOT NULL DEFAULT 'Umumiy',
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now', '+5 hours')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
@@ -51,7 +51,7 @@ db.exec(`
     user_id       INTEGER NOT NULL,
     amount        INTEGER NOT NULL,
     admin_id      INTEGER NOT NULL,
-    created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+    created_at    TEXT    NOT NULL DEFAULT (datetime('now', '+5 hours')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 

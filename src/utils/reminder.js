@@ -1,7 +1,7 @@
 const cron = require('node-cron');
 const config = require('../config');
 const { userQueries, patientQueries } = require('../database/queries');
-const { getDateRange } = require('../utils/dates');
+const { getDateRange, getTashkentNow } = require('../utils/dates');
 const db = require('../database/connection');
 
 // ─── Get all active user telegram IDs ────────────────────────────────
@@ -80,7 +80,7 @@ async function sendUserReminder(bot, telegramId, lang, userId, type) {
 
     if (type === 'morning') {
       // Morning: show yesterday's results
-      const yesterday = new Date();
+      const yesterday = getTashkentNow();
       yesterday.setDate(yesterday.getDate() - 1);
       const yStart = formatDateLocal(yesterday);
       const yEnd = start; // today's start = yesterday's end
@@ -114,7 +114,7 @@ async function sendAdminReminder(bot, type, targetId) {
     let count = 0;
 
     if (type === 'morning') {
-      const yesterday = new Date();
+      const yesterday = getTashkentNow();
       yesterday.setDate(yesterday.getDate() - 1);
       const yStart = formatDateLocal(yesterday);
       const yEnd = start;

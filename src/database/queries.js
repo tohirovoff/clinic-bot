@@ -183,7 +183,7 @@ const paymentQueries = {
 
   /** Get all payments by user within a date range */
   getByUserAndDateRange: db.prepare(`
-    SELECT id, user_id, amount, admin_id, datetime(created_at, 'localtime') as created_at FROM payments
+    SELECT id, user_id, amount, admin_id, created_at FROM payments
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
@@ -192,7 +192,7 @@ const paymentQueries = {
 
   /** Get all payments by user, date range and admin */
   getByUserDateRangeAndAdmin: db.prepare(`
-    SELECT id, user_id, amount, admin_id, datetime(created_at, 'localtime') as created_at FROM payments
+    SELECT id, user_id, amount, admin_id, created_at FROM payments
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?

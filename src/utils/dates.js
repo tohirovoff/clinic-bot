@@ -1,10 +1,17 @@
 /**
  * Date range helpers for statistics filtering.
- * All dates use local time via SQLite's datetime('now','localtime').
+ * All calculations are forced to UTC+5 (Tashkent time).
  */
 
-function getToday() {
+function getTashkentNow() {
+  // Get current UTC time and add 5 hours
   const now = new Date();
+  const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+  return new Date(utc + (3600000 * 5));
+}
+
+function getToday() {
+  const now = getTashkentNow();
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');
   const d = String(now.getDate()).padStart(2, '0');
@@ -12,7 +19,7 @@ function getToday() {
 }
 
 function getTomorrow() {
-  const now = new Date();
+  const now = getTashkentNow();
   now.setDate(now.getDate() + 1);
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');
@@ -21,7 +28,7 @@ function getTomorrow() {
 }
 
 function getDateRange(period) {
-  const now = new Date();
+  const now = getTashkentNow();
   let start, end;
 
   switch (period) {
@@ -67,4 +74,4 @@ function formatDate(date) {
   return `${y}-${m}-${d}`;
 }
 
-module.exports = { getDateRange, formatDate };
+module.exports = { getDateRange, formatDate, getTashkentNow };
