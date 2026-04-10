@@ -56,6 +56,7 @@ function adminMenuKeyboard(lang) {
 
 function subAdminMenuKeyboard(lang) {
   return inlineKeyboard([
+    [{ text: t(lang, 'admin_add_user'), callback_data: 'admin:add_user' }],
     [{ text: t(lang, 'admin_add_patient'), callback_data: 'admin:add_patient' }],
     [{ text: t(lang, 'admin_user_list'), callback_data: 'admin:user_list' }],
     [{ text: t(lang, 'admin_overall_stats'), callback_data: 'admin:overall_stats' }],

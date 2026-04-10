@@ -1,3 +1,4 @@
+const config = require('../config');
 const { t } = require('../locales');
 const {
   userQueries,
@@ -53,7 +54,7 @@ function handleAdminCallbacks(bot) {
     // ── Add User (SUPER ADMIN ONLY) ──────────────────────────────
     if (data === 'admin:add_user') {
       bot.answerCallbackQuery(query.id).catch(() => {});
-      if (!isSuperAdmin(chatId)) {
+      if (!isAdmin(chatId)) {
         return bot.sendMessage(chatId, '⛔ Sizda bu amalni bajarishga ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
       }
       sessionQueries.setState.run('admin_add_user_name', null, chatId);
@@ -310,7 +311,7 @@ function handleAdminTextInput(bot) {
     switch (session.state) {
       // ── Add User Flow (SUPER ADMIN ONLY) ────────────────────
       case 'admin_add_user_name': {
-        if (!isSuperAdmin(chatId)) {
+        if (!isAdmin(chatId)) {
           sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
         }
@@ -325,7 +326,7 @@ function handleAdminTextInput(bot) {
       }
 
       case 'admin_add_user_region': {
-        if (!isSuperAdmin(chatId)) {
+        if (!isAdmin(chatId)) {
           sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
         }
@@ -340,7 +341,7 @@ function handleAdminTextInput(bot) {
       }
 
       case 'admin_add_user_year': {
-        if (!isSuperAdmin(chatId)) {
+        if (!isAdmin(chatId)) {
           sessionQueries.clearState.run(chatId);
           return bot.sendMessage(chatId, '⛔ Ruxsat yo\'q.', getMenuKeyboard(chatId, lang));
         }
@@ -548,12 +549,23 @@ function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isS
   if (!user) return;
 
   const { start, end } = getDateRange(period);
-  const patients = patientQueries.getByUserAndDateRange.all(userId, start, end);
+  const dept = config.SUB_ADMIN_DEPARTMENTS[chatId];
+  
+  let patients, payments, paymentTotal;
+  if (!isSuperAdmin(chatId)) {
+    // Sub-admin: filter patients by department and payments by their own ID
+    patients = dept ? patientQueries.getByUserDateRangeAndDept.all(userId, start, end, dept) : [];
+    payments = paymentQueries.getByUserDateRangeAndAdmin.all(userId, start, end, chatId);
+    const paymentSumRow = paymentQueries.sumByUserDateRangeAndAdmin.get(userId, start, end, chatId);
+    paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
+  } else {
+    // Super-admin: see everything
+    patients = patientQueries.getByUserAndDateRange.all(userId, start, end);
+    payments = paymentQueries.getByUserAndDateRange.all(userId, start, end);
+    const paymentSumRow = paymentQueries.sumByUserAndDateRange.get(userId, start, end);
+    paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
+  }
   const count = patients.length;
-
-  const payments = paymentQueries.getByUserAndDateRange.all(userId, start, end);
-  const paymentSumRow = paymentQueries.sumByUserAndDateRange.get(userId, start, end);
-  const paymentTotal = paymentSumRow ? (paymentSumRow.total || 0) : 0;
 
   const periodKey = `period_${period}`;
   const userName = escapeMarkdown(user.full_name);
@@ -610,12 +622,27 @@ function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, period, isS
 
 function showOverallStats(bot, chatId, messageId, lang, period) {
   const { start, end } = getDateRange(period);
-  const totalRow = patientQueries.countByDateRange.get(start, end);
-  const perUser = patientQueries.countPerUserByDateRange.all(start, end);
-
-  const paymentSumRow = paymentQueries.sumByDateRange.get(start, end);
-  const totalPayment = paymentSumRow ? (paymentSumRow.total || 0) : 0;
-  const paymentPerUser = paymentQueries.sumPerUserByDateRange.all(start, end);
+  const dept = config.SUB_ADMIN_DEPARTMENTS[chatId];
+  
+  let totalRow, perUser, totalPayment, paymentPerUser;
+  if (!isSuperAdmin(chatId)) {
+    // Sub-admin: restricted view
+    totalRow = dept ? patientQueries.countByDateRangeAndDept.get(start, end, dept) : { count: 0 };
+    perUser = dept ? patientQueries.countPerUserDateRangeAndDept.all(start, end, dept) : [];
+    
+    // Payments made by THIS sub-admin
+    const paymentSumRow = paymentQueries.sumByDateRangeAndAdmin.get(start, end, chatId);
+    totalPayment = paymentSumRow ? (paymentSumRow.total || 0) : 0;
+    paymentPerUser = paymentQueries.sumPerUserDateRangeAndAdmin.all(start, end, chatId);
+  } else {
+    // Super-admin: see everything
+    totalRow = patientQueries.countByDateRange.get(start, end);
+    perUser = patientQueries.countPerUserByDateRange.all(start, end);
+    
+    const paymentSumRow = paymentQueries.sumByDateRange.get(start, end);
+    totalPayment = paymentSumRow ? (paymentSumRow.total || 0) : 0;
+    paymentPerUser = paymentQueries.sumPerUserByDateRange.all(start, end);
+  }
 
   const periodKey = `period_${period}`;
   let text = t(lang, 'overall_stats_title', { period: t(lang, periodKey) }) + '\n\n';

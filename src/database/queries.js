@@ -23,7 +23,7 @@ const userQueries = {
   `),
 
   getAll: db.prepare(`
-    SELECT * FROM users ORDER BY created_at DESC
+    SELECT * FROM users ORDER BY full_name ASC
   `),
 
   deleteById: db.prepare(`
@@ -56,12 +56,31 @@ const patientQueries = {
     ORDER BY created_at DESC
   `),
 
+  /** Patients by user, date range and department */
+  getByUserDateRangeAndDept: db.prepare(`
+    SELECT * FROM patients
+    WHERE user_id = ?
+      AND created_at >= ?
+      AND created_at < ?
+      AND department = ?
+    ORDER BY created_at DESC
+  `),
+
   /** Count by user within a date range */
   countByUserAndDateRange: db.prepare(`
     SELECT COUNT(*) as count FROM patients
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
+  `),
+
+  /** Count by user, date range and department */
+  countByUserDateRangeAndDept: db.prepare(`
+    SELECT COUNT(*) as count FROM patients
+    WHERE user_id = ?
+      AND created_at >= ?
+      AND created_at < ?
+      AND department = ?
   `),
 
   /** All patients within a date range (for overall stats) */
@@ -84,11 +103,31 @@ const patientQueries = {
     ORDER BY count DESC
   `),
 
+  /** Count per user within a date range and department */
+  countPerUserDateRangeAndDept: db.prepare(`
+    SELECT u.id, u.full_name, COUNT(p.id) as count
+    FROM users u
+    LEFT JOIN patients p ON p.user_id = u.id
+      AND p.created_at >= ?
+      AND p.created_at < ?
+      AND p.department = ?
+    GROUP BY u.id
+    ORDER BY count DESC
+  `),
+
   /** Total count in a date range */
   countByDateRange: db.prepare(`
     SELECT COUNT(*) as count FROM patients
     WHERE created_at >= ?
       AND created_at < ?
+  `),
+
+  /** Total count in a date range and department */
+  countByDateRangeAndDept: db.prepare(`
+    SELECT COUNT(*) as count FROM patients
+    WHERE created_at >= ?
+      AND created_at < ?
+      AND department = ?
   `),
 };
 
@@ -144,10 +183,20 @@ const paymentQueries = {
 
   /** Get all payments by user within a date range */
   getByUserAndDateRange: db.prepare(`
-    SELECT * FROM payments
+    SELECT id, user_id, amount, admin_id, datetime(created_at, 'localtime') as created_at FROM payments
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
+    ORDER BY created_at DESC
+  `),
+
+  /** Get all payments by user, date range and admin */
+  getByUserDateRangeAndAdmin: db.prepare(`
+    SELECT id, user_id, amount, admin_id, datetime(created_at, 'localtime') as created_at FROM payments
+    WHERE user_id = ?
+      AND created_at >= ?
+      AND created_at < ?
+      AND admin_id = ?
     ORDER BY created_at DESC
   `),
 
@@ -157,6 +206,15 @@ const paymentQueries = {
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
+  `),
+
+  /** Sum amount per user, date range and admin */
+  sumByUserDateRangeAndAdmin: db.prepare(`
+    SELECT SUM(amount) as total FROM payments
+    WHERE user_id = ?
+      AND created_at >= ?
+      AND created_at < ?
+      AND admin_id = ?
   `),
 
   /** Sum per user within a date range (for overall stats) */
@@ -170,11 +228,31 @@ const paymentQueries = {
     ORDER BY total DESC
   `),
 
+  /** Sum per user within a date range and admin */
+  sumPerUserDateRangeAndAdmin: db.prepare(`
+    SELECT u.id, u.full_name, SUM(py.amount) as total
+    FROM users u
+    LEFT JOIN payments py ON py.user_id = u.id
+      AND py.created_at >= ?
+      AND py.created_at < ?
+      AND py.admin_id = ?
+    GROUP BY u.id
+    ORDER BY total DESC
+  `),
+
   /** Total sum in a date range */
   sumByDateRange: db.prepare(`
     SELECT SUM(amount) as total FROM payments
     WHERE created_at >= ?
       AND created_at < ?
+  `),
+
+  /** Total sum in a date range and admin */
+  sumByDateRangeAndAdmin: db.prepare(`
+    SELECT SUM(amount) as total FROM payments
+    WHERE created_at >= ?
+      AND created_at < ?
+      AND admin_id = ?
   `),
 };
 

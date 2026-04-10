@@ -17,26 +17,26 @@ const reminderMessages = {
   uz_latin: {
     morning:
       '🌅 *Xayrli tong\\!*\n\n' +
-      '🏥 Bugun ham bemorlaringizni klinikamizga yo\'naltiring\\!\n\n' +
+      '🏥 *Musayev Klinikasi* o\'z faoliyatini davom ettirmoqda\\.\n\n' +
       '📊 Kechagi natijangiz: *{count}* bemor\n\n' +
-      '💪 Bugun ham yaxshi natijaga erishamiz\\!',
-    evening:
-      '🌇 *Xayrli kech\\!*\n\n' +
+      '💪 Bugun ham ko\'proq bemorlarni kutib qolamiz\\!',
+    periodic:
+      '🔔 *Eslatma\\!*\n\n' +
+      '🏥 *Musayev Klinikasi* o\'z faoliyatini davom ettirmoqda\\.\n\n' +
       '📊 Bugungi natijangiz: *{count}* bemor\n\n' +
-      '🙏 Bugungi harakatingiz uchun rahmat\\!\n\n' +
-      '✨ Ertaga ham davom etamiz\\!',
+      '✨ Harakatingiz uchun tashakkur\\!',
   },
   uz_cyrillic: {
     morning:
       '🌅 *Хайрли тонг\\!*\n\n' +
-      '🏥 Бугун ҳам беморларингизни клиникамизга йўналтиринг\\!\n\n' +
+      '🏥 *Мусаев Клиникаси* ўз фаолиятини давом эттирмоқда\\.\n\n' +
       '📊 Кечаги натижангиз: *{count}* бемор\n\n' +
-      '💪 Бугун ҳам яхши натижага эришамиз\\!',
-    evening:
-      '🌇 *Хайрли кеч\\!*\n\n' +
+      '💪 Бугун ҳам кўпроқ беморларни кутиб қоламиз\\!',
+    periodic:
+      '🔔 *Эслатма\\!*\n\n' +
+      '🏥 *Мусаев Клиникаси* ўз фаолиятини давом эттирмоқда\\.\n\n' +
       '📊 Бугунги натижангиз: *{count}* бемор\n\n' +
-      '🙏 Бугунги ҳаракатингиз учун раҳмат\\!\n\n' +
-      '✨ Эртага ҳам давом этамиз\\!',
+      '✨ Ҳаракатингиз учун ташаккур\\!',
   },
 };
 
@@ -45,26 +45,24 @@ const adminReminderMessages = {
   uz_latin: {
     morning:
       '🌅 *Xayrli tong, Admin\\!*\n\n' +
+      '🏥 *Musayev Klinikasi* faoliyatda\\.\n\n' +
       '📊 Kechagi umumiy natija: *{count}* bemor\n\n' +
-      '👥 Faol shifokorlar soni: *{activeUsers}*\n\n' +
-      '🏥 Bugun ham muvaffaqiyatli kun tilaymiz\\!',
-    evening:
-      '🌇 *Xayrli kech, Admin\\!*\n\n' +
+      '👥 Faol shifokorlar soni: *{activeUsers}*',
+    periodic:
+      '🔔 *Eslatma, Admin\\!*\n\n' +
       '📊 Bugungi umumiy natija: *{count}* bemor\n\n' +
-      '👥 Faol shifokorlar soni: *{activeUsers}*\n\n' +
-      '✅ Bugungi kun yakunlandi\\!',
+      '👥 Faol shifokorlar soni: *{activeUsers}*',
   },
   uz_cyrillic: {
     morning:
       '🌅 *Хайрли тонг, Админ\\!*\n\n' +
+      '🏥 *Мусаев Клиникаси* фаолиятда\\.\n\n' +
       '📊 Кечаги умумий натижа: *{count}* бемор\n\n' +
-      '👥 Фаол шифокорлар сони: *{activeUsers}*\n\n' +
-      '🏥 Бугун ҳам муваффақиятли кун тилаймиз\\!',
-    evening:
-      '🌇 *Хайрли кеч, Админ\\!*\n\n' +
+      '👥 Фаол шифокорлар сони: *{activeUsers}*',
+    periodic:
+      '🔔 *Эслатма, Админ\\!*\n\n' +
       '📊 Бугунги умумий натижа: *{count}* бемор\n\n' +
-      '👥 Фаол шифокорлар сони: *{activeUsers}*\n\n' +
-      '✅ Бугунги кун якунланди\\!',
+      '👥 Фаол шифокорлар сони: *{activeUsers}*',
   },
 };
 
@@ -150,7 +148,12 @@ function formatDateLocal(date) {
  * Send reminders to all active users and all admins.
  */
 async function sendReminders(bot, type) {
-  console.log(`📢 ${type === 'morning' ? '🌅 Ertalabki' : '🌇 Kechki'} eslatmalar yuborilmoqda...`);
+  const typeMap = {
+    morning: '🌅 Ertalabki',
+    noon: '🕛 Tushki',
+    afternoon: '🕒 Kunduzgi'
+  };
+  console.log(`📢 ${typeMap[type] || type} eslatmalar yuborilmoqda...`);
 
   // Send to all logged-in users (skip all admins — they get separate messages)
   const allAdminIds = config.ALL_ADMINS;
@@ -169,7 +172,7 @@ async function sendReminders(bot, type) {
     await sendAdminReminder(bot, type, adminId);
   }
 
-  console.log(`✅ ${type === 'morning' ? 'Ertalabki' : 'Kechki'} eslatmalar yuborildi (${activeUsers.length} foydalanuvchi, ${allAdminIds.length} admin)`);
+  console.log(`✅ Eslatmalar yuborildi (${activeUsers.length} foydalanuvchi, ${allAdminIds.length} admin)`);
 }
 
 /**
@@ -178,25 +181,33 @@ async function sendReminders(bot, type) {
  */
 function startReminderScheduler(bot) {
   const morningTime = config.REMINDER_MORNING || '0 9 * * *';
-  const eveningTime = config.REMINDER_EVENING || '0 18 * * *';
+  const noonTime = config.REMINDER_NOON || '0 12 * * *';
+  const afternoonTime = config.REMINDER_AFTERNOON || '0 14 * * *';
+  const cleanupTime = config.CLEANUP_MIDNIGHT || '0 0 * * *';
 
   // Morning reminder
   cron.schedule(morningTime, () => {
     sendReminders(bot, 'morning');
-  }, {
-    timezone: 'Asia/Tashkent',
-  });
+  }, { timezone: 'Asia/Tashkent' });
 
-  // Evening reminder
-  cron.schedule(eveningTime, () => {
-    sendReminders(bot, 'evening');
-  }, {
-    timezone: 'Asia/Tashkent',
-  });
+  // Noon reminder
+  cron.schedule(noonTime, () => {
+    sendReminders(bot, 'periodic');
+  }, { timezone: 'Asia/Tashkent' });
 
-  console.log(`⏰ Eslatmalar rejalashtirild:`);
-  console.log(`   🌅 Ertalab: ${morningTime} (Toshkent vaqti)`);
-  console.log(`   🌇 Kechqurun: ${eveningTime} (Toshkent vaqti)`);
+  // Afternoon reminder
+  cron.schedule(afternoonTime, () => {
+    sendReminders(bot, 'periodic');
+  }, { timezone: 'Asia/Tashkent' });
+
+  // Midnight cleanup
+  cron.schedule(cleanupTime, () => {
+    console.log('🧹 Yarim kechasi sessiyalarni tozalash...');
+    db.prepare('UPDATE sessions SET state = NULL, state_data = NULL').run();
+  }, { timezone: 'Asia/Tashkent' });
+
+  console.log(`⏰ Eslatmalar rejalashtirildi: 09:00, 12:00, 14:00 (Toshkent vaqti)`);
+  console.log(`🧹 Tozalash: 00:00`);
 }
 
 module.exports = { startReminderScheduler, sendReminders };
