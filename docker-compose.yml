@@ -8,7 +8,6 @@ services:
     environment:
       - TZ=Asia/Tashkent
     volumes:
-      - clinic-bot-data:/app/data
+      - ./data:/app/data
 
-volumes:
-  clinic-bot-data:
+# Named volume olib tashlandi, endi faqat lokal papka ishlatiladi
