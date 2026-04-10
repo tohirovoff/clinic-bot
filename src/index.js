@@ -7,12 +7,12 @@ const { initSchema, closePool } = require("./database/connection");
 // ─── Initialize Bot ──────────────────────────────────────────────────
 const bot = new TelegramBot(config.BOT_TOKEN, {
   polling: true,
-  request: {
-    agentOptions: {
-      keepAlive: true,
-      family: 4,
-    },
-  },
+  // request: {
+  //   agentOptions: {
+  //     keepAlive: true,
+  //     family: 4,
+  //   },
+  // },
 });
 
 // ─── Start Application ──────────────────────────────────────────────
