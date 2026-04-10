@@ -8,8 +8,7 @@ services:
     container_name: clinic-bot
     restart: unless-stopped
     env_file: .env
+    environment:
+      - TZ=Asia/Tashkent
     volumes:
-      - clinic-bot-data:/app/data
-
-volumes:
-  clinic-bot-data:
+      - ./data:/app/data
