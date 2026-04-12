@@ -6,7 +6,7 @@ const { pool, prepare } = require('../database/connection');
 
 // ─── Prepared queries for reminder ───────────────────────────────────
 const getActiveUserTelegramIds = prepare(`
-  SELECT s.telegram_id, s.lang, u.full_name
+  SELECT s.telegram_id, s.lang, u.full_name, s.last_reminder_id
   FROM sessions s
   JOIN users u ON u.id = s.user_id
   WHERE s.user_id IS NOT NULL
@@ -93,7 +93,7 @@ const adminReminderMessages = {
 /**
  * Send reminder to a single user.
  */
-async function sendUserReminder(bot, telegramId, lang, userId, type) {
+async function sendUserReminder(bot, telegramId, lang, userId, type, session) {
   try {
     const locale = reminderMessages[lang] || reminderMessages.uz_latin;
     let message = locale[type];
@@ -117,7 +117,16 @@ async function sendUserReminder(bot, telegramId, lang, userId, type) {
     }
 
     message = message.replace(/\{count\}/g, String(count));
-    await bot.sendMessage(telegramId, message, { parse_mode: 'MarkdownV2' });
+    
+    // Delete old reminder if exists
+    if (session.last_reminder_id) {
+      bot.deleteMessage(telegramId, session.last_reminder_id).catch(() => {});
+    }
+
+    const sent = await bot.sendMessage(telegramId, message, { parse_mode: 'MarkdownV2' });
+    if (sent) {
+      await sessionQueries.setLastReminderId.run(sent.message_id, telegramId);
+    }
   } catch (err) {
     console.error(`Reminder error (user ${telegramId}):`, err.message);
   }
@@ -153,7 +162,19 @@ async function sendAdminReminder(bot, type, targetId) {
     message = message.replace(/\{count\}/g, String(count));
     message = message.replace(/\{activeUsers\}/g, String(activeUsers));
 
-    await bot.sendMessage(targetId, message, { parse_mode: 'MarkdownV2' });
+    // Get admin session to delete old message
+    const session = await getSessionLang.get(targetId); // getSessionLang actually returns the whole row in this context? No, let's check.
+    // Wait, let's use a more direct way to get last_reminder_id for admin
+    const adminSessionRow = await pool.query('SELECT last_reminder_id FROM sessions WHERE telegram_id = $1', [targetId]);
+    const lastId = adminSessionRow.rows[0]?.last_reminder_id;
+    if (lastId) {
+      bot.deleteMessage(targetId, lastId).catch(() => {});
+    }
+
+    const sent = await bot.sendMessage(targetId, message, { parse_mode: 'MarkdownV2' });
+    if (sent) {
+      await sessionQueries.setLastReminderId.run(sent.message_id, targetId);
+    }
   } catch (err) {
     console.error(`Admin reminder error (${targetId}):`, err.message);
   }
@@ -188,7 +209,7 @@ async function sendReminders(bot, type) {
 
     const userIdRow = await getSessionUserId.get(user.telegram_id);
     if (userIdRow && userIdRow.user_id) {
-      await sendUserReminder(bot, user.telegram_id, user.lang || 'uz_latin', userIdRow.user_id, type);
+      await sendUserReminder(bot, user.telegram_id, user.lang || 'uz_latin', userIdRow.user_id, type, user);
     }
   }
 
@@ -225,14 +246,9 @@ function startReminderScheduler(bot) {
     sendReminders(bot, 'periodic');
   }, { timezone: 'Asia/Tashkent' });
 
-  // Midnight cleanup
-  cron.schedule(cleanupTime, async () => {
-    console.log('🧹 Yarim kechasi sessiyalarni tozalash...');
-    await clearAllSessionStates.run();
-  }, { timezone: 'Asia/Tashkent' });
-
+  // No more midnight state clearance as requested
+  
   console.log(`⏰ Eslatmalar rejalashtirildi: 09:00, 12:00, 14:00 (Toshkent vaqti)`);
-  console.log(`🧹 Tozalash: 00:00`);
 }
 
 module.exports = { startReminderScheduler, sendReminders };

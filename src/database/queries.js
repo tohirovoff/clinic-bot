@@ -181,6 +181,10 @@ const sessionQueries = {
   deleteByUserId: prepare(`
     DELETE FROM sessions WHERE user_id = ?
   `),
+
+  setLastReminderId: prepare(`
+    UPDATE sessions SET last_reminder_id = ? WHERE telegram_id = ?
+  `),
 };
 
 // ─── Payment Queries ─────────────────────────────────────────────────

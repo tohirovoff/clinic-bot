@@ -97,6 +97,7 @@ async function initSchema() {
       lang          TEXT    NOT NULL DEFAULT 'uz_latin',
       state         TEXT,
       state_data    TEXT,
+      last_reminder_id BIGINT,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     );
 
@@ -112,6 +113,9 @@ async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_patients_user_id    ON patients(user_id);
     CREATE INDEX IF NOT EXISTS idx_patients_created_at ON patients(created_at);
     CREATE INDEX IF NOT EXISTS idx_users_password      ON users(password);
+
+    -- Ensure last_reminder_id column exists
+    ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_reminder_id BIGINT;
   `);
 
   console.log('✅ PostgreSQL schema initialized');
