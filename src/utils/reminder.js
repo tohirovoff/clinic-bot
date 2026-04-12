@@ -28,27 +28,39 @@ const clearAllSessionStates = prepare(
 const reminderMessages = {
   uz_latin: {
     morning:
-      '🌅 *Xayrli tong\\!*\n\n' +
-      '🏥 *Musayev Klinikasi* o\'z faoliyatini davom ettirmoqda\\.\n\n' +
-      '📊 Kechagi natijangiz: *{count}* bemor\n\n' +
-      '💪 Bugun ham ko\'proq bemorlarni kutib qolamiz\\!',
+      '📢 *Hurmatli foydalanuvchilar\\!*\n' +
+      'Musayev Klinikasi o‘z faoliyatini davom ettirmoqda va sizlarga sifatli tibbiy xizmatlarni taklif etadi\\.\n\n' +
+      '🏥 *Klinikamizda quyidagi xizmatlar mavjud:*\n' +
+      '🔹 UZI \\(ultratovush tekshiruvi\\)\n' +
+      '🔹 Rentgen \\(Rengen\\) xizmati\n' +
+      '🔹 Ayollar uchun maxsus UZI tekshiruvi\n\n' +
+      '👩‍⚕️ Malakali shifokorlar va zamonaviy uskunalar yordamida siz o‘z sog‘lig‘ingizni ishonch bilan tekshirtirishingiz mumkin\\.',
     periodic:
-      '🔔 *Eslatma\\!*\n\n' +
-      '🏥 *Musayev Klinikasi* o\'z faoliyatini davom ettirmoqda\\.\n\n' +
-      '📊 Bugungi natijangiz: *{count}* bemor\n\n' +
-      '✨ Harakatingiz uchun tashakkur\\!',
+      '📢 *Hurmatli foydalanuvchilar\\!*\n' +
+      'Musayev Klinikasi o‘z faoliyatini davom ettirmoqda va sizlarga sifatli tibbiy xizmatlarni taklif etadi\\.\n\n' +
+      '🏥 *Klinikamizda quyidagi xizmatlar mavjud:*\n' +
+      '🔹 UZI \\(ultratovush tekshiruvi\\)\n' +
+      '🔹 Rentgen \\(Rengen\\) xizmati\n' +
+      '🔹 Ayollar uchun maxsus UZI tekshiruvi\n\n' +
+      '👩‍⚕️ Malakali shifokorlar va zamonaviy uskunalar yordamida siz o‘z sog‘lig‘ingizni ishonch bilan tekshirtirishingiz mumkin\\.',
   },
   uz_cyrillic: {
     morning:
-      '🌅 *Хайрли тонг\\!*\n\n' +
-      '🏥 *Мусаев Клиникаси* ўз фаолиятини давом эттирмоқда\\.\n\n' +
-      '📊 Кечаги натижангиз: *{count}* бемор\n\n' +
-      '💪 Бугун ҳам кўпроқ беморларни кутиб қоламиз\\!',
+      '📢 *Ҳурматли фойдаланувчилар\\!*\n' +
+      'Мусаев Клиникаси ўз фаолиятини давом эттирмоқда ва сизларга сифатли тиббий хизматларни таклиф этади\\.\n\n' +
+      '🏥 *Клиникамизда қуйидаги хизматлар мавжуд:*\n' +
+      '🔹 УЗИ \\(ультратовуш текшируви\\)\n' +
+      '🔹 Рентген \\(Ренген\\) хизмати\n' +
+      '🔹 Аёллар учун махсус УЗИ текшируви\n\n' +
+      '👩‍⚕️ Малакали шифокорлар ва замонавий ускуналар ёрдамида сиз ўз соғлиғингизни ишонч билан текширтиришингиз мумкин\\.',
     periodic:
-      '🔔 *Эслатма\\!*\n\n' +
-      '🏥 *Мусаев Клиникаси* ўз фаолиятини давом эттирмоқда\\.\n\n' +
-      '📊 Бугунги натижангиз: *{count}* бемор\n\n' +
-      '✨ Ҳаракатингиз учун ташаккур\\!',
+      '📢 *Ҳурматли фойдаланувчилар\\!*\n' +
+      'Мусаев Клиникаси ўз фаолиятини давом эттирмоқда ва сизларга сифатли тиббий хизматларни таклиф этади\\.\n\n' +
+      '🏥 *Клиникамизда қуйидаги хизматлар мавжуд:*\n' +
+      '🔹 УЗИ \\(ультратовуш текшируви\\)\n' +
+      '🔹 Рентген \\(Ренген\\) хизмати\n' +
+      '🔹 Аёллар учун махсус УЗИ текшируви\n\n' +
+      '👩‍⚕️ Малакали шифокорлар ва замонавий ускуналар ёрдамида сиз ўз соғлиғингизни ишонч билан текширтиришингиз мумкин\\.',
   },
 };
 
