@@ -9,24 +9,25 @@ const userQueries = {
   `),
 
   findByPassword: prepare(`
-    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    SELECT id, full_name, region, birth_year, password, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
     FROM users WHERE password = ?
   `),
 
   findById: prepare(`
-    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    SELECT id, full_name, region, birth_year, password, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
     FROM users WHERE id = ?
   `),
 
   findByTelegramId: prepare(`
-    SELECT u.*, TO_CHAR(u.created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    SELECT u.id, u.full_name, u.region, u.birth_year, u.password, 
+           TO_CHAR(u.created_at, 'YYYY-MM-DD HH24:MI') as created_at
     FROM users u
     JOIN sessions s ON s.user_id = u.id
     WHERE s.telegram_id = ?
   `),
 
   getAll: prepare(`
-    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    SELECT id, full_name, region, birth_year, password, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
     FROM users ORDER BY full_name ASC
   `),
 
@@ -53,23 +54,23 @@ const patientQueries = {
 
   /** Patients by user within a date range */
   getByUserAndDateRange: prepare(`
-    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    SELECT id, user_id, full_name, region, birth_year, department, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
     FROM patients
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
-    ORDER BY created_at DESC
+    ORDER BY patients.created_at DESC
   `),
 
   /** Patients by user, date range and department */
   getByUserDateRangeAndDept: prepare(`
-    SELECT *, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
+    SELECT id, user_id, full_name, region, birth_year, department, TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI') as created_at
     FROM patients
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
       AND department = ?
-    ORDER BY created_at DESC
+    ORDER BY patients.created_at DESC
   `),
 
   /** Count by user within a date range */
@@ -91,7 +92,8 @@ const patientQueries = {
 
   /** All patients within a date range (for overall stats) */
   getAllByDateRange: prepare(`
-    SELECT p.*, u.full_name as user_name,
+    SELECT p.id, p.user_id, p.full_name, p.region, p.birth_year, p.department, 
+           u.full_name as user_name,
            TO_CHAR(p.created_at, 'YYYY-MM-DD HH24:MI') as created_at
     FROM patients p
     JOIN users u ON u.id = p.user_id
@@ -197,7 +199,7 @@ const paymentQueries = {
     WHERE user_id = ?
       AND created_at >= ?
       AND created_at < ?
-    ORDER BY created_at DESC
+    ORDER BY payments.created_at DESC
   `),
 
   /** Get all payments by user, date range and admin */
@@ -209,7 +211,7 @@ const paymentQueries = {
       AND created_at >= ?
       AND created_at < ?
       AND admin_id = ?
-    ORDER BY created_at DESC
+    ORDER BY payments.created_at DESC
   `),
 
   /** Sum amount per user within a date range */
