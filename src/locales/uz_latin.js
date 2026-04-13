@@ -27,12 +27,13 @@ module.exports = {
   stats_title: "📊 *{name} \\- {period} statistikasi*",
   stats_total: "Jami bemorlar: *{count}*",
   stats_empty: "Bu davr uchun bemorlar topilmadi\\.",
-  stats_patient_row: "{i}\\. {name} \\- {region} \\({year}\\) \\- {department}",
+  stats_patient_row: "{i}\\. {name} \\- {region} \\({year}\\) \\- {department} \\[ID: {id}\\]",
 
   // Admin menu
   admin_welcome: "👋 Xush kelibsiz, Admin\\!",
   admin_add_user: "➕ Shifokor qo'shish",
   admin_add_patient: "➕ Bemor qo'shish",
+  admin_delete_patient: "🗑 Bemor o'chirish",
   admin_user_list: "👥 Shifokorlar ro'yxati",
   admin_overall_stats: "📊 Umumiy statistika",
 
@@ -95,12 +96,24 @@ module.exports = {
   cancel: "❌ Bekor qilish",
   cancelled: "✅ Bekor qilindi.",
 
-  // Delete
   admin_delete_user: "🗑 Shifokor o'chirish",
+  admin_edit_user: "✏️ Shifokorni tahrirlash",
   confirm_delete_user: "⚠️ *{name}* ni o'chirishni xohlaysizmi? Barcha ma'lumotlari o'chib ketadi\\!",
   confirm_yes: "✅ Ha, o'chirish",
   confirm_no: "❌ Yo'q",
   user_deleted: "✅ *{name}* muvaffaqiyatli o'chirildi\\.",
+  enter_patient_id_to_delete: "🗑 O'chirmoqchi bo'lgan bemor ID sini kiriting:",
+  patient_not_found: "❌ Bunday ID ga ega bemor topilmadi yoki sizga ruxsat yo'q.",
+  patient_deleted_success: "✅ Bemor muvaffaqiyatli o'chirildi.",
+  enter_patient_id_to_edit: "✏️ Tahrirlamoqchi bo'lgan bemor ID sini kiriting:",
+  select_field_to_edit: "Tahrirlash uchun maydonni tanlang:",
+  field_name: "👤 Ism",
+  field_region: "📍 Hudud",
+  field_year: "📅 Yil",
+  field_password: "🔑 Parol",
+  field_department: "🏥 Bo'lim",
+  enter_new_value: "Yangi qiymatni kiriting:",
+  edit_success: "✅ Muvaffaqiyatli tahrirlandi!",
 
   // Payments
   admin_add_payment: "💸 To'lov qo'shish",

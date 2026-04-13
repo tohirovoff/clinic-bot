@@ -18,6 +18,8 @@ const {
   userDetailKeyboard,
   confirmDeleteKeyboard,
   departmentKeyboard,
+  editUserFieldKeyboard,
+  editPatientFieldKeyboard,
 } = require('../keyboards');
 
 /**
@@ -121,6 +123,35 @@ function handleAdminCallbacks(bot) {
     if (data.startsWith('select_dept:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
       const sessionState = session.state;
+
+      // Handle edit patient department
+      if (sessionState === 'admin_edit_patient_field') {
+        const stateData = session.state_data ? JSON.parse(session.state_data) : {};
+        if (stateData.field !== 'dept') return;
+        
+        const patientId = stateData.patient_id;
+        const department = data.split(':')[1];
+
+        try {
+          await patientQueries.update.run({
+            id: patientId,
+            full_name: null,
+            region: null,
+            birth_year: null,
+            department: department
+          });
+          await sessionQueries.clearState.run(chatId);
+          bot.deleteMessage(chatId, query.message.message_id).catch(() => {});
+          return bot.sendMessage(chatId, t(lang, 'edit_success'), {
+            ...getMenuKeyboard(chatId, lang)
+          });
+        } catch (err) {
+          console.error('Error updating patient dept:', err);
+          await sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
+        }
+      }
+
       if (sessionState !== 'admin_add_patient_department') return;
 
       const department = data.split(':')[1];
@@ -171,11 +202,103 @@ function handleAdminCallbacks(bot) {
       return showUserList(bot, chatId, query.message.message_id, lang);
     }
 
+    // ── Delete Patient (ALL ADMINS) ──────────────────────────────
+    if (data === 'admin:delete_patient') {
+      bot.answerCallbackQuery(query.id).catch(() => {});
+      await sessionQueries.setState.run('admin_delete_patient_id', null, chatId);
+      return bot.editMessageText(t(lang, 'enter_patient_id_to_delete'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...cancelKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'enter_patient_id_to_delete'), cancelKeyboard(lang));
+      });
+    }
+
+    // ── Edit Patient (ALL ADMINS) ────────────────────────────────
+    if (data === 'admin:edit_patient') {
+      bot.answerCallbackQuery(query.id).catch(() => {});
+      await sessionQueries.setState.run('admin_edit_patient_id', null, chatId);
+      return bot.editMessageText(t(lang, 'enter_patient_id_to_edit'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...cancelKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'enter_patient_id_to_edit'), cancelKeyboard(lang));
+      });
+    }
+
     // ── User Detail (ALL ADMINS) ───────────────────────────
     if (data.startsWith('user_detail:')) {
       bot.answerCallbackQuery(query.id).catch(() => {});
       const userId = parseInt(data.split(':')[1], 10);
       return showUserDetail(bot, chatId, query.message.message_id, lang, userId, isSuperAdmin(chatId));
+    }
+
+    // ── Edit User (ALL ADMINS) ───────────────────────────────────
+    if (data.startsWith('edit_user:')) {
+      bot.answerCallbackQuery(query.id).catch(() => {});
+      const userId = parseInt(data.split(':')[1], 10);
+      return bot.editMessageText(t(lang, 'select_field_to_edit'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...editUserFieldKeyboard(lang, userId)
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'select_field_to_edit'), editUserFieldKeyboard(lang, userId));
+      });
+    }
+
+    // ── Edit User Field Selection ────────────────────────────────
+    if (data.startsWith('edit_user_field:')) {
+      bot.answerCallbackQuery(query.id).catch(() => {});
+      const parts = data.split(':');
+      const userId = parseInt(parts[1], 10);
+      const field = parts[2];
+
+      await sessionQueries.setState.run(
+        'admin_edit_user_field',
+        JSON.stringify({ user_id: userId, field }),
+        chatId
+      );
+      return bot.editMessageText(t(lang, 'enter_new_value'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...cancelKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'enter_new_value'), cancelKeyboard(lang));
+      });
+    }
+
+    // ── Edit Patient Field Selection ────────────────────────────────
+    if (data.startsWith('edit_patient_field:')) {
+      bot.answerCallbackQuery(query.id).catch(() => {});
+      const parts = data.split(':');
+      const patientId = parseInt(parts[1], 10);
+      const field = parts[2];
+
+      await sessionQueries.setState.run(
+        'admin_edit_patient_field',
+        JSON.stringify({ patient_id: patientId, field }),
+        chatId
+      );
+      
+      if (field === 'dept') {
+        return bot.editMessageText(t(lang, 'enter_patient_department'), {
+          chat_id: chatId,
+          message_id: query.message.message_id,
+          ...departmentKeyboard(lang),
+        }).catch(() => {
+          bot.sendMessage(chatId, t(lang, 'enter_patient_department'), departmentKeyboard(lang));
+        });
+      }
+
+      return bot.editMessageText(t(lang, 'enter_new_value'), {
+        chat_id: chatId,
+        message_id: query.message.message_id,
+        ...cancelKeyboard(lang),
+      }).catch(() => {
+        bot.sendMessage(chatId, t(lang, 'enter_new_value'), cancelKeyboard(lang));
+      });
     }
 
     // ── User Stats (admin viewing a user — ALL ADMINS) ─────
@@ -457,6 +580,135 @@ function handleAdminTextInput(bot) {
         break;
       }
 
+      // ── Delete Patient Flow (ALL ADMINS) ─────────────────────────
+      case 'admin_delete_patient_id': {
+        const patientId = parseInt(input, 10);
+        if (isNaN(patientId)) {
+          return bot.sendMessage(chatId, t(lang, 'patient_not_found'), cancelKeyboard(lang));
+        }
+
+        const patient = await patientQueries.findById.get(patientId);
+        
+        const dept = config.SUB_ADMIN_DEPARTMENTS[chatId];
+        if (!patient || (dept && patient.department !== dept && !isSuperAdmin(chatId))) {
+           await sessionQueries.clearState.run(chatId);
+           return bot.sendMessage(chatId, t(lang, 'patient_not_found'), getMenuKeyboard(chatId, lang));
+        }
+
+        try {
+          await patientQueries.deleteById.run(patientId);
+        } catch (err) {
+          console.error('Error deleting patient:', err);
+          await sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
+        }
+
+        await sessionQueries.clearState.run(chatId);
+
+        bot.sendMessage(chatId, t(lang, 'patient_deleted_success'), {
+          ...getMenuKeyboard(chatId, lang),
+        });
+        break;
+      }
+
+      // ── Edit Patient Flow (ALL ADMINS) ─────────────────────────
+      case 'admin_edit_patient_id': {
+        const patientId = parseInt(input, 10);
+        if (isNaN(patientId)) {
+          return bot.sendMessage(chatId, t(lang, 'patient_not_found'), cancelKeyboard(lang));
+        }
+
+        const patient = await patientQueries.findById.get(patientId);
+        
+        const dept = config.SUB_ADMIN_DEPARTMENTS[chatId];
+        if (!patient || (dept && patient.department !== dept && !isSuperAdmin(chatId))) {
+           await sessionQueries.clearState.run(chatId);
+           return bot.sendMessage(chatId, t(lang, 'patient_not_found'), getMenuKeyboard(chatId, lang));
+        }
+
+        await sessionQueries.clearState.run(chatId);
+        bot.sendMessage(chatId, t(lang, 'select_field_to_edit'), editPatientFieldKeyboard(lang, patientId));
+        break;
+      }
+
+      // ── Edit User Field Value ─────────────────────────────────────
+      case 'admin_edit_user_field': {
+        const userId = stateData.user_id;
+        const field = stateData.field;
+        let user = await userQueries.findById.get(userId);
+        if (!user) {
+          await sessionQueries.clearState.run(chatId);
+          return bot.sendMessage(chatId, t(lang, 'user_not_found'), getMenuKeyboard(chatId, lang));
+        }
+
+        let updateData = { id: userId, full_name: null, region: null, birth_year: null, password: null };
+        
+        if (field === 'year') {
+           const year = parseInt(input, 10);
+           if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+             return bot.sendMessage(chatId, t(lang, 'invalid_year'), cancelKeyboard(lang));
+           }
+           updateData.birth_year = year;
+        } else if (field === 'name') {
+           updateData.full_name = input;
+        } else if (field === 'region') {
+           updateData.region = input;
+        } else if (field === 'password') {
+           updateData.password = input;
+        }
+
+        try {
+          await userQueries.update.run(updateData);
+          await sessionQueries.clearState.run(chatId);
+          bot.sendMessage(chatId, t(lang, 'edit_success'), getMenuKeyboard(chatId, lang));
+        } catch (err) {
+          console.error('Error updating user:', err);
+          await sessionQueries.clearState.run(chatId);
+          bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
+        }
+        break;
+      }
+
+      // ── Edit Patient Field Value ──────────────────────────────────
+      case 'admin_edit_patient_field': {
+        const patientId = stateData.patient_id;
+        const field = stateData.field;
+        let patient = await patientQueries.findById.get(patientId);
+        const dept = config.SUB_ADMIN_DEPARTMENTS[chatId];
+
+        if (!patient || (dept && patient.department !== dept && !isSuperAdmin(chatId))) {
+           await sessionQueries.clearState.run(chatId);
+           return bot.sendMessage(chatId, t(lang, 'patient_not_found'), getMenuKeyboard(chatId, lang));
+        }
+
+        let updateData = { id: patientId, full_name: null, region: null, birth_year: null, department: null };
+        
+        if (field === 'year') {
+           const year = parseInt(input, 10);
+           if (isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+             return bot.sendMessage(chatId, t(lang, 'invalid_year'), cancelKeyboard(lang));
+           }
+           updateData.birth_year = year;
+        } else if (field === 'name') {
+           updateData.full_name = input;
+        } else if (field === 'region') {
+           updateData.region = input;
+        } else if (field === 'dept') {
+           updateData.department = input; // Covered by select_dept: mostly, but just in case
+        }
+
+        try {
+          await patientQueries.update.run(updateData);
+          await sessionQueries.clearState.run(chatId);
+          bot.sendMessage(chatId, t(lang, 'edit_success'), getMenuKeyboard(chatId, lang));
+        } catch (err) {
+          console.error('Error updating patient:', err);
+          await sessionQueries.clearState.run(chatId);
+          bot.sendMessage(chatId, '❌ Xatolik yuz berdi.', getMenuKeyboard(chatId, lang));
+        }
+        break;
+      }
+
       default:
         break;
     }
@@ -581,6 +833,7 @@ async function showUserStatsForAdmin(bot, chatId, messageId, lang, userId, perio
         region: escapeMarkdown(p.region),
         year: String(p.birth_year),
         department: escapeMarkdown(p.department),
+        id: String(p.id),
       }) + '\n';
     });
     text += '\n';

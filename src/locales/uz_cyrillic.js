@@ -27,12 +27,13 @@ module.exports = {
   stats_title: "📊 *{name} \\- {period} статистикаси*",
   stats_total: "Жами беморлар: *{count}*",
   stats_empty: "Бу давр учун беморлар топилмади\\.",
-  stats_patient_row: "{i}\\. {name} \\- {region} \\({year}\\) \\- {department}",
+  stats_patient_row: "{i}\\. {name} \\- {region} \\({year}\\) \\- {department} \\[ID: {id}\\]",
 
   // Admin menu
   admin_welcome: "👋 Хуш келибсиз, Админ\\!",
   admin_add_user: "➕ Шифокор қўшиш",
   admin_add_patient: "➕ Бемор қўшиш",
+  admin_delete_patient: "🗑 Бемор ўчириш",
   admin_user_list: "👥 Шифокорлар рўйхати",
   admin_overall_stats: "📊 Умумий статистика",
 
@@ -95,12 +96,24 @@ module.exports = {
   cancel: "❌ Бекор қилиш",
   cancelled: "✅ Бекор қилинди.",
 
-  // Delete
   admin_delete_user: "🗑 Шифокор ўчириш",
+  admin_edit_user: "✏️ Шифокорни таҳрирлаш",
   confirm_delete_user: "⚠️ *{name}* ни ўчиришни хоҳлайсизми? Барча маълумотлари ўчиб кетади\\!",
   confirm_yes: "✅ Ҳа, ўчириш",
   confirm_no: "❌ Йўқ",
   user_deleted: "✅ *{name}* муваффақиятли ўчирилди\\.",
+  enter_patient_id_to_delete: "🗑 Ўчирмоқчи бўлган бемор ID сини киритинг:",
+  patient_not_found: "❌ Бундай ID га эга бемор топилмади ёки сизга рухсат йўқ.",
+  patient_deleted_success: "✅ Бемор муваффақиятли ўчирилди.",
+  enter_patient_id_to_edit: "✏️ Таҳрирламоқчи бўлган бемор ID сини киритинг:",
+  select_field_to_edit: "Таҳрирлаш учун майдонни танланг:",
+  field_name: "👤 Исм",
+  field_region: "📍 Ҳудуд",
+  field_year: "📅 Йил",
+  field_password: "🔑 Парол",
+  field_department: "🏥 Бўлим",
+  enter_new_value: "Янги қийматни киритинг:",
+  edit_success: "✅ Муваффақиятли таҳрирланди!",
 
   // Payments
   admin_add_payment: "💸 Тўлов қўшиш",

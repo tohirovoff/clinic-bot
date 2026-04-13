@@ -49,6 +49,8 @@ function adminMenuKeyboard(lang) {
   return inlineKeyboard([
     [{ text: t(lang, 'admin_add_user'), callback_data: 'admin:add_user' }],
     [{ text: t(lang, 'admin_add_patient'), callback_data: 'admin:add_patient' }],
+    [{ text: t(lang, 'admin_edit_patient'), callback_data: 'admin:edit_patient' }],
+    [{ text: t(lang, 'admin_delete_patient'), callback_data: 'admin:delete_patient' }],
     [{ text: t(lang, 'admin_user_list'), callback_data: 'admin:user_list' }],
     [{ text: t(lang, 'admin_overall_stats'), callback_data: 'admin:overall_stats' }],
   ]);
@@ -58,6 +60,8 @@ function subAdminMenuKeyboard(lang) {
   return inlineKeyboard([
     [{ text: t(lang, 'admin_add_user'), callback_data: 'admin:add_user' }],
     [{ text: t(lang, 'admin_add_patient'), callback_data: 'admin:add_patient' }],
+    [{ text: t(lang, 'admin_edit_patient'), callback_data: 'admin:edit_patient' }],
+    [{ text: t(lang, 'admin_delete_patient'), callback_data: 'admin:delete_patient' }],
     [{ text: t(lang, 'admin_user_list'), callback_data: 'admin:user_list' }],
     [{ text: t(lang, 'admin_overall_stats'), callback_data: 'admin:overall_stats' }],
   ]);
@@ -107,10 +111,31 @@ function userDetailKeyboard(lang, userId, isSuper = false) {
     kb.push([{ text: t(lang, 'admin_delete_user'), callback_data: `delete_user:${userId}` }]);
   }
 
+  kb.push([{ text: t(lang, 'admin_edit_user'), callback_data: `edit_user:${userId}` }]);
   kb.push([{ text: t(lang, 'admin_add_payment'), callback_data: `add_payment:${userId}` }]);
   kb.push([{ text: t(lang, 'back'), callback_data: 'admin:user_list' }]);
   
   return inlineKeyboard(kb);
+}
+
+function editUserFieldKeyboard(lang, userId) {
+  return inlineKeyboard([
+    [{ text: t(lang, 'field_name'), callback_data: `edit_user_field:${userId}:name` }],
+    [{ text: t(lang, 'field_region'), callback_data: `edit_user_field:${userId}:region` }],
+    [{ text: t(lang, 'field_year'), callback_data: `edit_user_field:${userId}:year` }],
+    [{ text: t(lang, 'field_password'), callback_data: `edit_user_field:${userId}:password` }],
+    [{ text: t(lang, 'back'), callback_data: `user_detail:${userId}` }],
+  ]);
+}
+
+function editPatientFieldKeyboard(lang, patientId) {
+  return inlineKeyboard([
+    [{ text: t(lang, 'field_name'), callback_data: `edit_patient_field:${patientId}:name` }],
+    [{ text: t(lang, 'field_region'), callback_data: `edit_patient_field:${patientId}:region` }],
+    [{ text: t(lang, 'field_year'), callback_data: `edit_patient_field:${patientId}:year` }],
+    [{ text: t(lang, 'field_department'), callback_data: `edit_patient_field:${patientId}:dept` }],
+    [{ text: t(lang, 'cancel'), callback_data: `cancel` }],
+  ]);
 }
 
 module.exports = {
@@ -126,4 +151,6 @@ module.exports = {
   departmentKeyboard,
   confirmDeleteKeyboard,
   userDetailKeyboard,
+  editUserFieldKeyboard,
+  editPatientFieldKeyboard,
 };

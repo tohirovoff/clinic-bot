@@ -42,6 +42,15 @@ const userQueries = {
   updateTelegramId: prepare(`
     UPDATE users SET telegram_id = ? WHERE id = ?
   `),
+
+  update: prepare(`
+    UPDATE users
+    SET full_name = COALESCE(@full_name, full_name),
+        region = COALESCE(@region, region),
+        birth_year = COALESCE(@birth_year, birth_year),
+        password = COALESCE(@password, password)
+    WHERE id = @id
+  `),
 };
 
 // ─── Patient Queries ─────────────────────────────────────────────────
@@ -138,6 +147,26 @@ const patientQueries = {
     WHERE created_at >= ?
       AND created_at < ?
       AND department = ?
+  `),
+
+  /** Find by ID */
+  findById: prepare(`
+    SELECT * FROM patients WHERE id = ?
+  `),
+
+  /** Delete by ID */
+  deleteById: prepare(`
+    DELETE FROM patients WHERE id = ?
+  `),
+
+  /** Update by ID */
+  update: prepare(`
+    UPDATE patients
+    SET full_name = COALESCE(@full_name, full_name),
+        region = COALESCE(@region, region),
+        birth_year = COALESCE(@birth_year, birth_year),
+        department = COALESCE(@department, department)
+    WHERE id = @id
   `),
 };
 
