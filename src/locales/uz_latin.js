@@ -98,6 +98,7 @@ module.exports = {
 
   admin_delete_user: "🗑 Shifokor o'chirish",
   admin_edit_user: "✏️ Shifokorni tahrirlash",
+  admin_edit_patient: "✏️ Bemorni tahrirlash",
   confirm_delete_user: "⚠️ *{name}* ni o'chirishni xohlaysizmi? Barcha ma'lumotlari o'chib ketadi\\!",
   confirm_yes: "✅ Ha, o'chirish",
   confirm_no: "❌ Yo'q",
